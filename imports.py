@@ -16,3 +16,5 @@ import seaborn as sns
 sns.set(style="darkgrid")
 
 # Import py files for generic functions
+from sql_db import *
+from generic_functions import *
