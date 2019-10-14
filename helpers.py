@@ -5,6 +5,12 @@ from typing import Iterable
 def np_by_language(newspapers_languages_df: pd.core.frame.DataFrame,
                    languages_df: pd.core.frame.DataFrame,
                    language: str) -> pd.core.series.Series:
+    """ Get the id of newspapers having a specific language.
+        :param pd.core.frame.DataFrame newspapers_metadata_df: Newspapers data frame with languages info.
+        :param pd.core.frame.DataFrame languages_df: Data frame containing info on each language.
+        :param str language: Language value on which we want to select newspapers (e.g. "fr").
+        :return: Pandas series containing the rows of the Newspapers data frame for the selected language value.
+        """
 
     assert language in languages_df.code.unique(), "Chose a language among existing ones in db."
 
@@ -19,13 +25,10 @@ def np_by_property(newspapers_metadata_df: pd.core.frame.DataFrame,
                    filter_: str) -> pd.core.series.Series:
     """ Get the id of newspapers having a specific property value.
         :param pd.core.frame.DataFrame newspapers_metadata_df: Newspapers data frame with properties info.
-        # TODO BELOW !!!!!
-        :param pd.core.frame.DataFrame meta_properties_df: Data frame after the group by and count operations.
-        :param str property_name: Reference column to which we compare others.
-        :param str filter_: Whether we print some info in case of differences.
-        :return: Tuple of three values : the data frame with a count column,
-        a boolean indicating if all columns have the same counts (for all rows),
-        a list containing the name of the columns for which some count values are different than the selected column.
+        :param pd.core.frame.DataFrame meta_properties_df: Data frame containing info on each property.
+        :param str property_name: Property name on which we want to select newspapers.
+        :param str filter_: Property value on which we want to select newspapers.
+        :return: Pandas series containing the rows of the Newspapers data frame for the selected property value.
         """
     assert property_name in meta_properties_df.name.unique(), "Can't recognize selected property. \
     Please chose one among existing ones in db meta_properties."
@@ -42,7 +45,7 @@ def np_by_property(newspapers_metadata_df: pd.core.frame.DataFrame,
 def filter_df_by_np_id(df: pd.core.frame.DataFrame,
                        selected_np: Iterable) -> pd.core.series.Series:
     # Param selected_np should be a list or pd.Series => check if we have a more specific type for these
-    """ Select only the rows if a data frame corresponding to some newspapers ID.
+    """ Select only the rows of a data frame, corresponding to some newspapers ID.
         :param pd.core.frame.DataFrame df: Source data frame.
         :param Iterable selected_np: List or pandas Series containing the newspapers id which will be kept.
         :return: Pandas series containing the rows of the source data frame for the selected newspapers.
@@ -99,7 +102,7 @@ def group_and_count(df: pd.core.frame.DataFrame,
         :param Iterable grouping_columns: List of columns which the df should be grouped by.
         :param str column_select: Reference column that we keep for the count values.
         :param bool print_: Whether we print some info in case of count differences between the columns.
-        :return: Tuple of three values : the data frame with a count column,
+        :return: Tuple of three values : the result data frame with a count column,
         a boolean indicating if all columns have the same counts (for all rows),
         a list containing the name of the columns for which some count values are different than the selected column.
         """
