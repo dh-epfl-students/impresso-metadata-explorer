@@ -46,3 +46,4 @@ def import_table_csv(path: str) -> pd.core.frame.DataFrame:
         :return: Pandas data frame corresponding to the csv file.
         """
     return pd.read_csv(path, index_col=0)
+
