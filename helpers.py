@@ -15,7 +15,8 @@ def np_by_language(newspapers_languages_df: pd.core.frame.DataFrame,
     assert language in languages_df.code.unique(), "Chose a language among existing ones in db."
 
     # Find ID
-    lang_id = languages_df.loc[languages_df['code'] == language]['id'].item()
+    lang_id = languages_df.loc[languages_df['code'] == language]['id']
+    lang_id = next(iter(lang_id), 'no match')
     return newspapers_languages_df.loc[newspapers_languages_df['language_id'] == lang_id]['newspaper_id']
 
 
@@ -34,7 +35,8 @@ def np_by_property(newspapers_metadata_df: pd.core.frame.DataFrame,
     Please chose one among existing ones in db meta_properties."
 
     # Find ID
-    prop_id = meta_properties_df.loc[meta_properties_df['name'] == property_name]['id'].item()
+    prop_id = meta_properties_df.loc[meta_properties_df['name'] == property_name]['id']
+    prop_id = next(iter(prop_id), 'no match')
 
     # TODO : check if filter is one of values for given property ?
 

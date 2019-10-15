@@ -1,5 +1,10 @@
 # Basic imports
 import os
+import sys
+
+import matplotlib
+
+sys.path.append('./')
 
 # SQL database
 import pymysql
