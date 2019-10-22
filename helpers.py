@@ -11,7 +11,7 @@ def np_by_language(newspapers_languages_df: pd.core.frame.DataFrame,
                    languages_df: pd.core.frame.DataFrame,
                    language: str) -> pd.core.series.Series:
     """ Get the id of newspapers having a specific language.
-        :param pd.core.frame.DataFrame newspapers_metadata_df: Newspapers data frame with languages info.
+        :param pd.core.frame.DataFrame newspapers_languages_df: Newspapers data frame with languages info.
         :param pd.core.frame.DataFrame languages_df: Data frame containing info on each language.
         :param str language: Language value on which we want to select newspapers (e.g. "fr").
         :return: Pandas series containing the rows of the Newspapers data frame for the selected language value.
