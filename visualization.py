@@ -9,6 +9,19 @@ from typing import Iterable
 def plot_issues_time_id(time_gran: str, start_date: int, end_date: int, np_ids: Iterable = None,
                         country: str = None, df: pd.core.frame.DataFrame = None, batch_size: int = None,
                         ppty: str = None, ppty_value: str = None) -> None:
+    """
+    General plotting function for issues frequency analysis (histogram).
+    :param time_gran: granularity in time, either 'year' or 'decade'
+    :param start_date: earliest date for analysis
+    :param end_date: latests date for analysis
+    :param np_ids: list (or pandas series) of newspapers ids on which to focus
+    :param country: selected country code
+    :param df: original data frame on which to build the histogram
+    :param batch_size: maximum number of newspapers represented on a single plot
+    :param ppty: selected property on which to filter newspapers
+    :param ppty_value: property value corresponding to the selected property
+    :return: Nothing, but plots the histogram(s) of issue frequency.
+    """
     issues_df = df
 
     # load data from SQL if needed
@@ -50,7 +63,7 @@ def plot_issues_time_id(time_gran: str, start_date: int, end_date: int, np_ids: 
 
     # if batch_size not specified : plot all newspapers on the same figure
     if batch_size is None:
-        sns.catplot(x=time_gran, y="count", hue="newspaper_id", kind="bar", data=count_df, height=5, aspect=2);
+        sns.catplot(x=time_gran, y="count", hue="newspaper_id", kind="bar", data=count_df, height=5, aspect=2)
 
     # else plot by batches (no intelligent batching is done)
     else:
@@ -58,7 +71,16 @@ def plot_issues_time_id(time_gran: str, start_date: int, end_date: int, np_ids: 
         catplot_by_batch_np(count_df, np_ids_filtered, time_gran, batch_size)
 
 
-def catplot_by_batch_np(df, np_list, time_granularity='decade', max_cat=5):
+def catplot_by_batch_np(df: pd.core.frame.DataFrame, np_list: Iterable, time_granularity: str = 'decade',
+                        max_cat: int = 5) -> None:
+    """
+    Helper function for plotting by batches
+    :param df: data frame to plot (no processing done on it)
+    :param np_list: list of newspaper ids
+    :param time_granularity: either 'decade' or 'year'
+    :param max_cat: maximum number of categories represented on a single plot
+    :return: Nothing, only plots.
+    """
     if len(df.newspaper_id.unique()) > max_cat:
         np_batch = [np_list[x:x + max_cat] for x in range(0, len(np_list), max_cat)]
     else:

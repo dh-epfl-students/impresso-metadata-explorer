@@ -30,11 +30,12 @@ def np_by_property(newspapers_metadata_df: pd.core.frame.DataFrame,
                    property_name: str,
                    filter_: str) -> pd.core.series.Series:
     """ Get the id of newspapers having a specific property value.
+        Helper function for function np_ppty.
         :param pd.core.frame.DataFrame newspapers_metadata_df: Newspapers data frame with properties info.
         :param pd.core.frame.DataFrame meta_properties_df: Data frame containing info on each property.
         :param str property_name: Property name on which we want to select newspapers.
         :param str filter_: Property value on which we want to select newspapers.
-        :return: Pandas series containing the rows of the Newspapers data frame for the selected property value.
+        :return: Pandas series containing the newspaper's ids for the selected property value.
         """
     assert property_name in meta_properties_df.name.unique(), "Can't recognize selected property. \
     Please chose one among existing ones in db meta_properties."
@@ -45,11 +46,18 @@ def np_by_property(newspapers_metadata_df: pd.core.frame.DataFrame,
 
     # TODO : check if filter is one of values for given property ?
 
-    return newspapers_metadata_df.loc[(newspapers_metadata_df['property_id']==prop_id)\
-                                     & (newspapers_metadata_df['value']==filter_)]['newspaper_id']
+    return newspapers_metadata_df.loc[(newspapers_metadata_df['property_id'] == prop_id)
+                                      & (newspapers_metadata_df['value'] == filter_)]['newspaper_id']
 
 
 def np_ppty(ppty_name: str, ppty_val: str, engine: sqlalchemy.engine.base.Engine) -> pd.core.frame.DataFrame:
+    """ Get the id of newspapers having a specific property value.
+        Loads data frames related to propertied ans calls function np_by_property.
+        :param str ppty_name: Property name on which we want to select newspapers.
+        :param str ppty_val: Property value on which we want to select newspapers.
+        :param sqlalchemy.engine.base.Engine engine: sql engine for loading dataframes.
+        :return: Pandas series containing the newspaper's ids for the selected property value.
+        """
     newspapers_metadata_df = read_table('newspapers_metadata', engine)
     meta_properties_df = read_table('meta_properties', engine)
 
@@ -57,10 +65,20 @@ def np_ppty(ppty_name: str, ppty_val: str, engine: sqlalchemy.engine.base.Engine
 
 
 def np_country(code: str) -> pd.core.frame.DataFrame:
+    """ Get the id of newspapers corresponding to a specific country.
+        Calls function np_ppty.
+        :param str code: Country code (e.g. 'CH' for Switzerland) .
+        :return: Pandas series containing the newspaper's ids for the selected country value.
+        """
     return np_ppty('countryCode', code, db_engine())
 
 
 def check_dates(start_date: int, end_date: int) -> bool:
+    """ Check validity of combination of start and end date, based on some criterions.
+    :param int start_date: earliest date
+    :param int end_date: latest date
+    :return: True if pair is valid, false otherwise
+    """
     # End date must be after start date
     if start_date > end_date:
         return False
@@ -73,6 +91,10 @@ def check_dates(start_date: int, end_date: int) -> bool:
 
 
 def decade_from_year_df(df: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
+    """ Created a column 'decade' based on the columns 'year' of a pandas data frame.
+    :param pd.core.frame.DataFrame df: Data frame to be modified
+    :return: new pandas data frame with column decade.
+    """
     if 'decade' not in df.columns and 'year' in df.columns:
         result_df = df.copy()
         result_df['decade'] = result_df.apply(lambda row: row.year - row.year % 10, axis=1)
