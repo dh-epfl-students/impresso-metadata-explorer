@@ -1,7 +1,10 @@
 from typing import Iterable
+from datetime import date
 
-from imports import *
-from sql import *
+import pandas as pd
+import sqlalchemy
+
+from sql import read_table, db_engine
 
 
 def np_by_language(newspapers_languages_df: pd.core.frame.DataFrame,
