@@ -1,5 +1,7 @@
-import pandas as pd
 from typing import Iterable
+
+from imports import *
+from sql import *
 
 
 def np_by_language(newspapers_languages_df: pd.core.frame.DataFrame,
@@ -42,6 +44,39 @@ def np_by_property(newspapers_metadata_df: pd.core.frame.DataFrame,
 
     return newspapers_metadata_df.loc[(newspapers_metadata_df['property_id']==prop_id)\
                                      & (newspapers_metadata_df['value']==filter_)]['newspaper_id']
+
+
+def np_ppty(ppty_name: str, ppty_val: str, engine: sqlalchemy.engine.base.Engine) -> pd.core.frame.DataFrame:
+    newspapers_metadata_df = read_table('newspapers_metadata', engine)
+    meta_properties_df = read_table('meta_properties', engine)
+
+    return np_by_property(newspapers_metadata_df, meta_properties_df, ppty_name, ppty_val)
+
+
+def np_country(code: str) -> pd.core.frame.DataFrame:
+    return np_ppty('countryCode', code, db_engine())
+
+
+def check_dates(start_date: int, end_date: int) -> bool:
+    # End date must be after start date
+    if start_date > end_date:
+        return False
+
+    # Start and end dates must be before today's year
+    if start_date > date.today().year or end_date > date.today().year:
+        return False
+
+    return True
+
+
+def decade_from_year_df(df: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
+    if 'decade' not in df.columns and 'year' in df.columns:
+        result_df = df.copy()
+        result_df['decade'] = result_df.apply(lambda row: row.year - row.year % 10, axis=1)
+    else:
+        raise ValueError("Decade columns already there, or year columns not there.")
+
+    return result_df
 
 
 def filter_df_by_np_id(df: pd.core.frame.DataFrame,
@@ -98,7 +133,7 @@ def check_all_column_count(df: pd.core.frame.DataFrame,
 def group_and_count(df: pd.core.frame.DataFrame,
                     grouping_columns: Iterable,
                     column_select: str,
-                    print_: bool = True) -> (pd.core.frame.DataFrame, bool, Iterable):
+                    print_: bool = False) -> (pd.core.frame.DataFrame, bool, Iterable):
     """ Perform group by and count on a data set.
         :param pd.core.frame.DataFrame df: Source data frame.
         :param Iterable grouping_columns: List of columns which the df should be grouped by.

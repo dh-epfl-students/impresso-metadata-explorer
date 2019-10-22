@@ -15,11 +15,9 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 plt.style.use('classic')
-%matplotlib inline
 
 import seaborn as sns
 sns.set(style="darkgrid")
 
-# Import py files for generic functions
-from sql import *
-from helpers import *
+import typing
+from datetime import date
