@@ -254,6 +254,3 @@ def multiple_ar_np(df: pd.core.frame.DataFrame) -> Iterable:
     # Get ids of the newspapers which have several access right levels
     return nb_ar_np[nb_ar_np['value']].newspaper_id.unique()
 
-
-
-#
