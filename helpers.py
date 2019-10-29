@@ -79,6 +79,9 @@ def check_dates(start_date: int, end_date: int) -> bool:
     :param int end_date: latest date
     :return: True if pair is valid, false otherwise
     """
+
+    assert(start_date is not None and end_date is not None), "Start and End dates should not be None."
+
     # End date must be after start date
     if start_date > end_date:
         return False
@@ -95,13 +98,14 @@ def decade_from_year_df(df: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     :param pd.core.frame.DataFrame df: Data frame to be modified
     :return: new pandas data frame with column decade.
     """
-    if 'decade' not in df.columns and 'year' in df.columns:
+    if 'decade' in df.columns:
+        return df
+    elif 'year' in df.columns:
         result_df = df.copy()
         result_df['decade'] = result_df.apply(lambda row: row.year - row.year % 10, axis=1)
+        return result_df
     else:
         raise ValueError("Decade columns already there, or year columns not there.")
-
-    return result_df
 
 
 def filter_df_by_np_id(df: pd.core.frame.DataFrame,
@@ -138,10 +142,11 @@ def check_all_column_count(df: pd.core.frame.DataFrame,
     value_to_check = count_df[column_select]
     column_different_count = []
 
+    # Check if all columns have the same count number
     for idx, col in enumerate(df.columns):
         if col not in grouping_columns:
             this_count = count_df[col]
-            # print(this_count)
+
             if not value_to_check.equals(this_count):
                 all_same = False
                 boolean_df = value_to_check.eq(this_count)
@@ -171,6 +176,83 @@ def group_and_count(df: pd.core.frame.DataFrame,
 
     count_df = df.groupby(grouping_columns).count()
     return check_all_column_count(df, count_df, grouping_columns, column_select, print_)
+
+
+def filter_df(df: pd.core.frame.DataFrame,
+              start_date: int = None,
+              end_date: int = None,
+              np_ids: Iterable = None,
+              country: str = None,
+              ppty: str = None,
+              ppty_value: str = None) -> (pd.core.frame.DataFrame, pd.core.series.Series):
+    result_df = df.copy()
+
+    # select specific np ids
+    if np_ids is not None and len(np_ids) > 0:
+        result_df = filter_df_by_np_id(result_df, np_ids)
+
+    # select specific country
+    if country is not None:
+        countries = np_country(country)
+        result_df = filter_df_by_np_id(result_df, countries)
+
+    # select specific property
+    if ppty is not None and ppty_value is not None:
+        properties = np_ppty(ppty, ppty_value, db_engine())
+        result_df = filter_df_by_np_id(result_df, properties)
+
+    # check date values
+    if start_date is not None and end_date is not None:
+        assert check_dates(start_date, end_date), 'Problem with start and end dates.'
+
+        # select dates
+        result_df = result_df.loc[(start_date <= result_df['year']) & (result_df['year'] <= end_date)]
+
+    # take final list of np ids
+    np_ids_filtered = result_df.newspaper_id.unique()
+
+    return result_df, np_ids_filtered
+
+
+# ----------------------------# LICENCES #---------------------------- #
+
+def license_stats_table(df: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
+    """
+    Gives a table with statistics about the access rights per newspaper id in given df
+    :param df: pandas data frame containing columns 'newspaper_id', 'access-rights' and 'count'
+    :return: pandas data frame with rates on each access right level for each np
+    """
+
+    ar_df = df.copy()
+
+    # Pivot to get a count per access right level & set the index correctly
+    ar_df = ar_df.pivot_table('count', ['newspaper_id'], 'access_rights')
+    ar_df.reset_index(drop=False, inplace=True)
+
+    # Change NaN values to zeros
+    ar_df = ar_df.fillna(0)
+
+    # Compute the rate of access right per level per np
+    ar_df['Total'] = ar_df[['Closed', 'OpenPrivate', 'OpenPublic']].sum(axis=1)
+    ar_df['rate_Closed'] = ar_df['Closed'] / ar_df['Total']
+    ar_df['rate_OpenPrivate'] = ar_df['OpenPrivate'] / ar_df['Total']
+    ar_df['rate_OpenPublic'] = ar_df['OpenPublic'] / ar_df['Total']
+    return ar_df
+
+
+def multiple_ar_np(df: pd.core.frame.DataFrame) -> Iterable:
+    """
+    Finds the newspapers ids of newspapers which have issues with several different access right types
+    :param df: pandas data frame with has 'access_rights' and 'newspapers_id' columns, in which to find the
+    newspapers id (typically the issues data frame)
+    :return: array of all
+    """
+    # Count number of different access rights per newspapers and mark the ones which have more that 1 access
+    # right policy
+    nb_ar_np = (df.groupby('newspaper_id')['access_rights'].nunique() > 1).reset_index(name='value')
+
+    # Get ids of the newspapers which have several access right levels
+    return nb_ar_np[nb_ar_np['value']].newspaper_id.unique()
 
 
 
