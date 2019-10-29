@@ -185,6 +185,17 @@ def filter_df(df: pd.core.frame.DataFrame,
               country: str = None,
               ppty: str = None,
               ppty_value: str = None) -> (pd.core.frame.DataFrame, pd.core.series.Series):
+    """
+    Returns a filtered data frame depending on the parameters
+    :param df: original data frame to be filtered
+    :param start_date: earliest date we want in the final df
+    :param end_date: latests date we want in the final df
+    :param np_ids: list of newspapers id to keep (drop all others)
+    :param country: select by country (eg 'CH', 'LU')
+    :param str ppty_name: Property name on which we want to select newspapers.
+    :param str ppty_val: Property value on which we want to select newspapers.
+    :return: Filtered data frame.
+    """
     result_df = df.copy()
 
     # select specific np ids
