@@ -123,7 +123,7 @@ def filter_df_by_np_id(df: pd.core.frame.DataFrame,
         """
     assert len(selected_np) > 0, "Given list of selected newspapers has length 0."
 
-    return df.loc[df['newspaper_id'].isin(selected_np)]
+    return df[df['newspaper_id'].isin(selected_np)]
 
 
 def check_all_column_count(df: pd.core.frame.DataFrame,
@@ -222,7 +222,7 @@ def filter_df(df: pd.core.frame.DataFrame,
         assert check_dates(start_date, end_date), 'Problem with start and end dates.'
 
         # select dates
-        result_df = result_df.loc[(start_date <= result_df['year']) & (result_df['year'] <= end_date)]
+        result_df = result_df[(start_date <= result_df['year']) & (result_df['year'] <= end_date)]
 
     # take final list of np ids
     np_ids_filtered = result_df.newspaper_id.unique()
