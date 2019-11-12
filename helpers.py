@@ -93,16 +93,21 @@ def check_dates(start_date: int, end_date: int) -> bool:
     return True
 
 
-def decade_from_year_df(df: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
+def decade_from_year_df(df: pd.core.frame.DataFrame, 
+                        dask_df: bool = False) -> pd.core.frame.DataFrame:
     """ Created a column 'decade' based on the columns 'year' of a pandas data frame.
     :param pd.core.frame.DataFrame df: Data frame to be modified
+    :param dask_df: set tu True if the dataframe is dask (and not pandas)
     :return: new pandas data frame with column decade.
     """
     if 'decade' in df.columns:
         return df
     elif 'year' in df.columns:
         result_df = df.copy()
-        result_df['decade'] = result_df.apply(lambda row: row.year - row.year % 10, axis=1)
+        if dask_df is True :
+            result_df['decade'] = result_df.year.apply(lambda y: y - y % 10, meta=('int'))
+        else :
+            result_df['decade'] = result_df.year.apply(lambda y: y - y % 10)
         return result_df
     else:
         raise ValueError("Decade columns already there, or year columns not there.")
