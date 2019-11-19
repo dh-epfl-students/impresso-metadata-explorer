@@ -11,7 +11,7 @@ setuptools.setup(
     description="Statistics functions on the impresso dataset.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/dhlab-epfl-students/impresso-metadata-explorer",
+    url="https://github.com/dhlab-epfl-students/impresso-metadata-explorer/impresso-stats",
     packages=setuptools.find_packages(),
     python_requires='>=3.6',
     install_requires=[
