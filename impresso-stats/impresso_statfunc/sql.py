@@ -1,8 +1,10 @@
 import os
+#import MySQLdb as sql
 import pandas as pd
 import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.pool import NullPool
+import pymysql; pymysql.install_as_MySQLdb()
 
 
 def db_engine() -> sqlalchemy.engine.base.Engine:

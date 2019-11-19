@@ -1,6 +1,5 @@
-from sql import read_table, db_engine
-from helpers import filter_df_by_np_id, np_country, np_ppty, check_dates, decade_from_year_df, group_and_count, \
-    filter_df
+from impresso_statfunc.sql import read_table, db_engine
+from impresso_statfunc.helpers import filter_df_by_np_id, np_country, np_ppty, check_dates, decade_from_year_df, group_and_count, filter_df
 
 import seaborn as sns
 import pandas as pd

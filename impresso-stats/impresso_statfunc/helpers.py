@@ -4,7 +4,7 @@ from datetime import date
 import pandas as pd
 import sqlalchemy
 
-from sql import read_table, db_engine
+from impresso_statfunc.sql import read_table, db_engine
 
 
 def np_by_language(newspapers_languages_df: pd.core.frame.DataFrame,
