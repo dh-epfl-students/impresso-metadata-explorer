@@ -1,0 +1,10 @@
+dask
+matplotlib
+numpy
+pandas
+pandas
+PyMySQL
+scipy
+seaborn
+SQLAlchemy
+impresso-pycommons
