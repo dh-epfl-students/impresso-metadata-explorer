@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="impresso-stats",
+    name="impresso_stats",
     version="0.0.1",
     author="Justine Weber",
     author_email="justine.weber@epfl.ch",
