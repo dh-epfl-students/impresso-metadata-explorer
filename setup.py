@@ -27,6 +27,6 @@ setuptools.setup(
         'impresso_commons',
     ],
     dependency_links=[
-      'https://github.com/impresso/impresso-pycommons/@v0.12.0#egg=impresso-pycommons',
+      'https://github.com/impresso/impresso-pycommons/@v0.12.0#egg=impresso_commons',
       ]
 )
