@@ -247,6 +247,73 @@ def plot_licences_np(count_df: pd.core.frame.DataFrame,
 label_threshold_rotation=30
 label_threshold_select = 100
 
+def plt_freq_ci_filter(df: dask.dataframe.core.DataFrame, 
+                grouping_col: list, 
+                asc: bool =False, 
+                hide_xtitle: bool =False, 
+                log_y: bool =False, 
+                start_date: int = None,
+                end_date: int = None,
+                np_ids: Iterable = None,
+                country: str = None) -> None:
+    """
+    Similar function as plt_freq_ci, on which you can add a filter at the level of newspapers.
+    Displays a bar plot of the number of content items aggregated at one or two dimension in given df, 
+    after filtering according to parameters.
+    :param df: dask data frame with column 'id' and column(s) in grouping_col
+    :param grouping_col: list of column(s) on which to aggregate the count (typically : 'year', 'type', 
+       'newspaper', or 'decade'). The list can contain one or two column names. If length is 2,
+       the first value is used as x axis and the second one as categorical value. 
+       It is not recommanded to use a time column (year or decade) as second column name. 
+       Sorting will be done in the same order.
+    :param hide_xtitle: if set to True, doesn't display title for x axis 
+                        (typically useful if x axis are years) (default is False)
+    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
+    :param start_date: earliest date on which to filter
+    :param end_date: latests date on which to filter
+    :param np_ids: list (or pandas series) of newspapers ids to filter (i.e. to keep)
+    :param country: selected country code (typically 'CH' or 'LU')
+    :return: Nothing. Plots.
+    """
+        
+    # Apply filters
+    df_filtered, _ = filter_df(df, start_date, end_date, np_ids, country)
+    
+    # Plot ci frequency based on filtered df
+    plt_freq_ci(df_filtered, grouping_col, asc, hide_xtitle, log_y)
+    
+
+def plt_freq_ci(df: dask.dataframe.core.DataFrame, 
+                grouping_col: list, 
+                asc: bool =False, 
+                hide_xtitle: bool =False, 
+                log_y: bool =False) -> None:
+    """
+    Displays a bar plot of the number of content items aggregated at one or two dimension in given df.
+    Helper function for plt_freq_ci_filter.
+    :param df: dask data frame with column 'id' and column(s) in grouping_col
+    :param grouping_col: list of column(s) on which to aggregate the count (typically : 'year', 'type', 
+       'newspaper', or 'decade'). The list can contain one or two column names. If length is 2,
+       the first value is used as x axis and the second one as categorical value. 
+       It is not recommanded to use a time column (year or decade) as second column name. 
+       Sorting will be done in the same order.
+    :param hide_xtitle: if set to True, doesn't display title for x axis 
+                        (typically useful if x axis are years) (default is False)
+    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
+    :return: Nothing. Plots.
+    """
+    n = len(grouping_col)
+    
+    if n==1:
+        plt_freq_ci_1d(df, grouping_col[0], asc, hide_xtitle, log_y)
+    
+    elif n==2:
+        plt_freq_ci_2d(df, grouping_col, hide_xtitle, log_y)
+        
+    else: 
+        raise ValueError("grouping_col parameter must be a list of length 1 or 2.")
+        
+
 def plt_freq_ci_1d(df: dask.dataframe.core.DataFrame, 
                    grouping_col: str, 
                    asc: bool =False, 
@@ -324,42 +391,81 @@ def plt_freq_ci_1d(df: dask.dataframe.core.DataFrame,
     
     # Plot Title
     g.set_title('Number of content items by %s' % grouping_col)
-
-
-def plt_freq_ci_1d_filter(df: dask.dataframe.core.DataFrame,
-                          grouping_col: str,
-                          asc: bool =False,
-                          hide_xtitle: bool =False,
-                          log_y: bool =False, 
-                          start_date: int = None,
-                          end_date: int = None,
-                          np_ids: Iterable = None,
-                          country: str = None):
-    """
-    Similar function as plt_freq_ci_1d, on which you can add a filter by newspaper ids.
-    Displays a bar plot of the number of content items aggregated at one dimension in given df, 
-    after filtering according to parameters.
-    :param df: dask data frame with columns 'id', grouping_col
-    :param grouping_col: column on which to aggregate the count (typically : 'year', 'type', 
-                        'newspaper', or 'decade' if column is added by calling decade_from_year_df 
-                        from helpers for example.
-    :param asc: if set to True, plots bar in ascending order (default is descending order)
-    :param hide_xtitle: if set to True, doesn't display title for x axis 
-                        (typically useful if x axis are years) (default is False)
-    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
-    :param start_date: earliest date on which to filter
-    :param end_date: latests date on which to filter
-    :param np_ids: list (or pandas series) of newspapers ids to filter (i.e. to keep)
-    :param country: selected country code (typically 'CH' or 'LU')
-    :return: Nothing. Plots.
-    """
     
-    # Apply filters
-    df_filtered, _ = filter_df(df, start_date, end_date, np_ids, country)
+
+def plt_freq_ci_2d(df: dask.dataframe.core.DataFrame, 
+                grouping_col: list,
+                hide_xtitle: bool =False, 
+                log_y: bool =False):
     
-    # Plot ci frequency based on filtered df
-    plt_freq_ci_1d(df_filtered, grouping_col, asc, hide_xtitle, log_y)
+    assert len(grouping_col)==2, "grouping_col parameter must be a list of length 2."
+    assert not (grouping_col[1]=='year' or grouping_col[1]=='decade'), "Time cannot be used as categorical variable."
+    
+    count_df = df.groupby(grouping_col).id.count().compute().reset_index(name='ci_count')
+    
+    aggr_dim = grouping_col[0]
+    cat_dim = grouping_col[1]
+    
+    ascending_0 = grouping_col[0]=='year' or grouping_col[0]=='decade'
+    
+    
+    # Sort by count descending (default), or other if specified (time / ascending)
+    count_df.sort_values(by=[grouping_col[0], 'ci_count'], inplace=True, ascending=[ascending_0, False])
+    
+    g = sns.catplot(x=grouping_col[0], y="ci_count", data=count_df, \
+                hue=grouping_col[1], kind='bar', height=5, aspect=3)
+    
+    plt_settings_FacetGrid(g, count_df, grouping_col, hide_xtitle, log_y)
+    
 
+def plt_settings_FacetGrid(g, count_df, grouping_col, hide_xtitle, log_y):
+    
+    axis_col = grouping_col[0]
+    
+    # SET X AXIS
+    # Labels
+    # no particular setup if number of labels is less than the first threshold
+    
+    num_xlabels = count_df[axis_col].nunique()
+    
+    if num_xlabels < label_threshold_rotation:
+        g.set_xticklabels(count_df[axis_col])
+        
+    # rotate by 90 degrees if number of labels is between first and second threshold
+    elif num_xlabels <  label_threshold_select:
+        g.set_xticklabels(count_df[axis_col], rotation=90)
+       
+    # display only certain labels (and rotate by 45 degrees) if number of labels is higher
+    else :        
+        number_of_steps = int(num_xlabels/50)
 
-
+        l = np.arange(0, num_xlabels, number_of_steps)
+        
+        my_xticklabels=[]
+        for x in g.axes[0,0].get_xticklabels():
+            my_xticklabels.append(int(x.get_text()))
+        
+        pos = (l / num_xlabels) * (max(my_xticklabels)-min(my_xticklabels))
+        g.set(xticks=pos)
+        g.set_xticklabels(count_df[axis_col].unique()[l], rotation=45);
+    
+    # Title
+    # option to remove the x axis title (when its obvious, e.g. for the years)
+    xtitle = '' if hide_xtitle else axis_col;
+    
+    # SET Y AXIS
+    # log scale option
+    if log_y :
+        g.set_yscale("log")
+    
+    # Title
+    ytitle = '# content items (log scale)' if log_y else '# content items'
+        
+    # Labels
+    ylabels = ['{:,.0f}'.format(int(y.get_text())) for y in g.axes[0,0].get_yticklabels()]
+    g.set_yticklabels(ylabels)
+    
+    # Plot Titles
+    g.set_axis_labels(x_var=xtitle, y_var=ytitle);
+    g.ax.set_title('Number of content items by %s per %s' % (grouping_col[0], grouping_col[1]))
 
