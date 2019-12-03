@@ -1,10 +1,17 @@
-from impresso_statfunc.sql import read_table, db_engine
-from impresso_statfunc.helpers import filter_df_by_np_id, np_country, np_ppty, check_dates, decade_from_year_df, group_and_count, filter_df
+from impresso_stats.sql import read_table, db_engine
+from impresso_stats.helpers import filter_df_by_np_id, np_country, np_ppty, check_dates, decade_from_year_df, group_and_count, filter_df
 
+import numpy as np
 import seaborn as sns
 import pandas as pd
+import dask
+import dask.dataframe
+import matplotlib.pyplot as plt
 from typing import Iterable
 
+from  matplotlib.ticker import FuncFormatter
+
+# ----------------------- ISSUES ----------------------- #
 
 def plot_issues_time_id(time_gran: str,
                         start_date: int = None,
@@ -232,3 +239,127 @@ def plot_licences_np(count_df: pd.core.frame.DataFrame,
         assert (0 < batch_size and batch_size < 20), "Batch size must be between 1 and 19."
         catplot_by_batch_np(count_df, np_ids, 'newspaper_id', 'count', 'access_rights', batch_size,
                             y_label='Number of issues', rotation=30, title='Issue frequency per access right type.')
+        
+        
+        
+# ----------------------- CONTENT ITEMS ----------------------- #
+
+label_threshold_rotation=30
+label_threshold_select = 100
+
+def plt_freq_ci_1d(df: dask.dataframe.core.DataFrame, 
+                   grouping_col: str, 
+                   asc: bool =False, 
+                   hide_xtitle: bool =False, 
+                   log_y: bool =False):
+    """
+    Displays a bar plot of the number of content items aggregated at one dimension in given df.
+    :param df: dask data frame with columns 'id', grouping_col
+    :param grouping_col: column on which to aggregate the count (typically : 'year', 'type', 
+                        'newspaper', or 'decade' if column is added by calling decade_from_year_df 
+                        from helpers for example.
+    :param asc: if set to True, plots bar in ascending order (default is descending order)
+    :param hide_xtitle: if set to True, doesn't display title for x axis 
+                        (typically useful if x axis are years) (default is False)
+    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
+    :return: Nothing. Plots.
+    """
+    
+    # Perfom the group by and count operation and convert to pandas df
+    count_df = df.groupby(grouping_col).id.count().compute().reset_index(name='ci_count')
+    
+    # Sort by count descending (default), or other if specified (time / ascending)
+    if grouping_col == 'year' or grouping_col=='decade' :
+        count_df.sort_values(by=grouping_col, inplace=True, ascending=True)
+    else:
+        count_df.sort_values(by='ci_count', inplace=True, ascending=asc)
+    
+    num_xlabels = len(count_df[grouping_col])
+    
+    # Plot figure
+    plt.figure(figsize=(20,5))
+
+    g = sns.barplot(x=grouping_col, y="ci_count", data=count_df, color='salmon');
+
+    # SET X AXIS
+    # Labels
+    # no particular setup if number of labels is less than the first threshold
+    if num_xlabels < label_threshold_rotation:
+        g.set_xticklabels(count_df[grouping_col])
+        
+    # rotate by 90 degrees if number of labels is between first and second threshold
+    elif num_xlabels <  label_threshold_select:
+        g.set_xticklabels(count_df[grouping_col], rotation=90)
+       
+    # display only certain labels (and rotate by 45 degrees) if number of labels is higher
+    else :        
+        number_of_steps = num_xlabels/50
+        
+        l = np.arange(0, num_xlabels+1, number_of_steps)
+        
+        pos = (l / num_xlabels) * (max(g.get_xticks())-min(g.get_xticks()))
+        g.set_xticks(pos);
+        g.set_xticklabels(count_df[grouping_col].iloc[l], rotation=45);
+    
+    # Title
+    # option to remove the x axis title (when its obvious, e.g. for the years)
+    if hide_xtitle:
+        g.set_xlabel('');
+    else:
+        g.set_xlabel(grouping_col);
+    
+    # SET Y AXIS
+    # log scale option
+    if log_y :
+        g.set_yscale("log")
+        g.set_ylabel('# content items (log scale)')
+    
+    else :
+        # Title
+        g.set_ylabel('# content items')
+        
+    # Labels
+    ylabels = ['{:,.0f}'.format(y) for y in g.get_yticks()]
+    g.set_yticklabels(ylabels)
+    
+    # Plot Title
+    g.set_title('Number of content items by %s' % grouping_col)
+
+
+def plt_freq_ci_1d_filter(df: dask.dataframe.core.DataFrame,
+                          grouping_col: str,
+                          asc: bool =False,
+                          hide_xtitle: bool =False,
+                          log_y: bool =False, 
+                          start_date: int = None,
+                          end_date: int = None,
+                          np_ids: Iterable = None,
+                          country: str = None):
+    """
+    Similar function as plt_freq_ci_1d, on which you can add a filter by newspaper ids.
+    Displays a bar plot of the number of content items aggregated at one dimension in given df, 
+    after filtering according to parameters.
+    :param df: dask data frame with columns 'id', grouping_col
+    :param grouping_col: column on which to aggregate the count (typically : 'year', 'type', 
+                        'newspaper', or 'decade' if column is added by calling decade_from_year_df 
+                        from helpers for example.
+    :param asc: if set to True, plots bar in ascending order (default is descending order)
+    :param hide_xtitle: if set to True, doesn't display title for x axis 
+                        (typically useful if x axis are years) (default is False)
+    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
+    :param start_date: earliest date on which to filter
+    :param end_date: latests date on which to filter
+    :param np_ids: list (or pandas series) of newspapers ids to filter (i.e. to keep)
+    :param country: selected country code (typically 'CH' or 'LU')
+    :return: Nothing. Plots.
+    """
+    
+    # Apply filters
+    df_filtered, _ = filter_df(df, start_date, end_date, np_ids, country)
+    
+    # Plot ci frequency based on filtered df
+    plt_freq_ci_1d(df_filtered, grouping_col, asc, hide_xtitle, log_y)
+
+
+
+

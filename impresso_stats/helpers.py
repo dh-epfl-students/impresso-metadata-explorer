@@ -3,6 +3,7 @@ from datetime import date
 
 import pandas as pd
 import sqlalchemy
+import warnings
 
 from impresso_stats.sql import read_table, db_engine
 
@@ -123,7 +124,15 @@ def filter_df_by_np_id(df: pd.core.frame.DataFrame,
         """
     assert len(selected_np) > 0, "Given list of selected newspapers has length 0."
 
-    return df[df['newspaper_id'].isin(selected_np)]
+    # Column is usually not named the same in issues df and content item df
+    # e.g. 'newspaper_id' in issues and 'newspaper' in ci.
+    # add another condition if you use it with another column names for newspaper IDs.
+    if 'newspaper_id' in df.columns:
+        return df[df['newspaper_id'].isin(selected_np)]
+    elif 'newspaper' in df.columns:
+        return df[df['newspaper'].isin(selected_np)]
+    else:
+        raise ValueError("Columns 'newspaper_id' or 'newspaper' is not there. Check your columns' name.")
 
 
 def check_all_column_count(df: pd.core.frame.DataFrame,
@@ -225,7 +234,16 @@ def filter_df(df: pd.core.frame.DataFrame,
         result_df = result_df[(start_date <= result_df['year']) & (result_df['year'] <= end_date)]
 
     # take final list of np ids
-    np_ids_filtered = result_df.newspaper_id.unique()
+    # Column is usually not named the same in issues df and content item df
+    # e.g. 'newspaper_id' in issues and 'newspaper' in ci.
+    # add another condition if you use it with another column names for newspaper IDs.
+    if 'newspaper_id' in result_df.columns:
+        np_ids_filtered = result_df.newspaper_id.unique()
+    elif 'newspaper' in result_df.columns:
+        np_ids_filtered = result_df.newspaper.unique()
+    else:
+        warnings.warn("Columns 'newspaper_id' or 'newspaper' is not there. Check your columns' name. \
+        Second returned value is empty.")
 
     return result_df, np_ids_filtered
 
@@ -253,6 +271,20 @@ def license_stats_table(df: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     ar_df['rate_Closed'] = ar_df['Closed'] / ar_df['Total']
     ar_df['rate_OpenPrivate'] = ar_df['OpenPrivate'] / ar_df['Total']
     ar_df['rate_OpenPublic'] = ar_df['OpenPublic'] / ar_df['Total']
+    
+    # Format columns
+    
+    # Remove useless decimals
+    ar_df['Closed'] = ar_df['Closed'].map('{:,.0f}'.format)
+    ar_df['OpenPrivate'] = ar_df['OpenPrivate'].map('{:,.0f}'.format)
+    ar_df['OpenPublic'] = ar_df['OpenPublic'].map('{:,.0f}'.format)
+    ar_df['Total'] = ar_df['Total'].map('{:,.0f}'.format)
+    
+    # Troncate rates
+    ar_df['rate_Closed'] = ar_df['rate_Closed'].map(lambda x: '{:,.4%}'.format(x) if x>0 else 0)
+    ar_df['rate_OpenPrivate'] = ar_df['rate_OpenPrivate'].map(lambda x: '{:,.4%}'.format(x) if x>0 else 0)
+    ar_df['rate_OpenPublic'] = ar_df['rate_OpenPublic'].map(lambda x: '{:,.4%}'.format(x) if x>0 else 0)
+    
     return ar_df
 
 
