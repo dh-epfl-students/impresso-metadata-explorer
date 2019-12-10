@@ -2,6 +2,7 @@ from typing import Iterable
 from datetime import date
 
 import pandas as pd
+import dask
 import sqlalchemy
 import warnings
 
@@ -302,3 +303,34 @@ def multiple_ar_np(df: pd.core.frame.DataFrame) -> Iterable:
     # Get ids of the newspapers which have several access right levels
     return nb_ar_np[nb_ar_np['value']].newspaper_id.unique()
 
+
+# ----------------------------# CONTENT ITEMS #---------------------------- #
+
+def licenses_ci_df(ci_df:  dask.dataframe.core.DataFrame) -> None:
+    '''
+    Helper function to get the access rights at the level of content items :
+    Loads and join the sql table on issues, with the df passed as parameter.
+    Warning : this function is very sensitive to any change in the column names 
+    for the df passed as parameter of the one in sql.
+    :param df: dask data frame with column 'id' having format: NNN-yyyy-mm-dd-t-ixxxx 
+    from which we can extract the issue_id : NNN-yyyy-mm-dd-t
+    :return: Merged dataframe, with access right for each content item'''
+    
+    # Read df with access rights (as issues level) from sql
+    engine = db_engine()
+    issues_df = read_table('impresso.issues', engine)
+    
+    # Rename column 'id' to avoid name conflicts 
+    issues_df = issues_df.rename(columns={"id": "issue_id"})
+    
+    # Extract issue_id from content item id
+    ci_df['issue_id'] = ci_df.id.apply(lambda x: x[:x.rfind("-")], meta=str)
+    
+    # Merge dfs
+    merged_df = ci_df.merge(issues_df, on='issue_id', suffixes=('_ci', '_issue'))
+    
+    # Select relevant columns and rename column year for compatibility with package functions
+    merged_df = merged_df[['id', 'newspaper','decade', 'year_issue', 'month', 'day',  'type', 'n_tokens', \
+                                   'title_length', 'access_rights']].rename(columns={'year_issue':'year'})
+    
+    return merged_df
