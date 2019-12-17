@@ -451,10 +451,10 @@ def plt_generic_1d(df: dask.dataframe.core.DataFrame,
     """
     Displays a bar plot either of the number of content items or of the average title_length (depending 
     on parameter 'facet'), aggregated at one dimension in given df.
-    :param df: dask data frame with columns 'id', grouping_col, or already aggregated with count column 
-    'freq' or 'avg' (equal to value of parameter 'facet')
-    :param grouping_col: column on which to aggregate the count (typically : 'year', 'type', 
-        'newspaper', or 'decade' if column is added by calling decade_from_year_df from helpers for example.
+    :param df: dask data frame with columns 'id' of 'title_length' (depending on parameter facet), grouping_col, 
+        or already aggregated with column 'freq' or 'avg' (equal to value of parameter 'facet')
+    :param grouping_col: column on which to aggregate (typically : 'year', 'type', 'newspaper', or 'decade' 
+        if column is added by calling decade_from_year_df from helpers for example.)
     :param freq_avg: if set to 'freq', counts the number of content item ID, if set to 'avg', computes the average 
         title_length (further development may add other facets). Disclaimer : for the average facet, it doesn't 
         consider NaN values.
