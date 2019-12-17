@@ -108,6 +108,7 @@ def catplot_by_batch_np(df: pd.core.frame.DataFrame,
         g = sns.catplot(x=xp, y=yp, hue=huep, kind="bar", data=batch, height=5, aspect=2)
         display_setup(g, rotation, display_x_label, display_y_label, x_label, y_label, title)
 
+        
 # plt settings
 def display_setup(g: sns.axisgrid.FacetGrid,
                   rotation: int = None,
@@ -292,6 +293,50 @@ def plt_freq_ci_filter(df: dask.dataframe.core.DataFrame,
     
     # Plot ci frequency based on filtered df
     return plt_freq_ci(df_filtered, grouping_col, asc, hide_xtitle, log_y)
+
+
+def plt_avg_tl_filter(df: dask.dataframe.core.DataFrame, 
+                grouping_col: list, 
+                asc: bool =False, 
+                hide_xtitle: bool =False, 
+                log_y: bool =False, 
+                types: list = None,
+                start_date: int = None,
+                end_date: int = None,
+                np_ids: Iterable = None,
+                country: str = None) -> pd.core.frame.DataFrame:
+    """
+    Similar function as plt_avg_tl, on which you can add a filter at the level of newspapers.
+    Displays a bar plot of the number of content items aggregated at one or two dimension in given df, 
+    after filtering according to parameters.
+    :param df: dask data frame with column 'id' and column(s) in grouping_col
+    :param grouping_col: list of column(s) on which to aggregate the average (typically : 'year', 'type', 
+       'newspaper', or 'decade'). The list can contain one or two column names. If length is 2,
+       the first value is used as x axis and the second one as categorical value. 
+       It is not recommanded to use a time column (year or decade) as second column name. 
+       Sorting will be done in the same order.
+    :param hide_xtitle: if set to True, doesn't display title for x axis 
+                        (typically useful if x axis are years) (default is False)
+    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
+    :param types: list of content-item types ('ar', 'w', ...). The list can have length 1 to number of types.
+    :param start_date: earliest date on which to filter
+    :param end_date: latests date on which to filter
+    :param np_ids: list (or pandas series) of newspapers ids to filter (i.e. to keep)
+    :param country: selected country code (typically 'CH' or 'LU')
+    :return: the aggregated df used for plotting
+    """
+    
+    df_filtered = df
+    
+    # Apply filters at the level of content-items (on types)
+    if types is not None:
+        df_filtered = df_filtered[df_filtered.type.isin(types)]
+        
+    # Apply filters at the level of newspapers
+    df_filtered, _ = filter_df(df_filtered, start_date, end_date, np_ids, country)
+    
+    # Plot ci frequency based on filtered df
+    return plt_avg_tl(df_filtered, grouping_col, asc, hide_xtitle, log_y)
     
 
 def plt_freq_ci(df: dask.dataframe.core.DataFrame, 
@@ -324,6 +369,37 @@ def plt_freq_ci(df: dask.dataframe.core.DataFrame,
     else: 
         raise ValueError("grouping_col parameter must be a list of length 1 or 2.")
         
+        
+def plt_avg_tl(df: dask.dataframe.core.DataFrame, 
+                grouping_col: list, 
+                asc: bool =False, 
+                hide_xtitle: bool =False, 
+                log_y: bool =False) -> pd.core.frame.DataFrame:
+    """
+    Displays a bar plot of the average title length of content items, aggregated at one or two dimension in given df.
+    Helper function for plt_avg_tl_filter.
+    :param df: dask data frame with column 'title_length' and column(s) in grouping_col
+    :param grouping_col: list of column(s) on which to aggregate the average (typically : 'year', 'type', 
+       'newspaper', or 'decade'). The list can contain one or two column names. If length is 2,
+       the first value is used as x axis and the second one as categorical value. 
+       It is not recommanded to use a time column (year or decade) as second column name. 
+       Sorting will be done in the same order.
+    :param hide_xtitle: if set to True, doesn't display title for x axis 
+       (typically useful if x axis are years) (default is False)
+    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
+    :return: the aggregated df used for plotting
+    """
+    n = len(grouping_col)
+    
+    if n==1:
+        return plt_avg_tl_1d(df, grouping_col[0], asc, hide_xtitle, log_y)
+    
+    elif n==2:
+        return plt_avg_tl_2d(df, grouping_col, hide_xtitle, log_y)
+        
+    else: 
+        raise ValueError("grouping_col parameter must be a list of length 1 or 2.")
+        
 
 def plt_freq_ci_1d(df: dask.dataframe.core.DataFrame, 
                    grouping_col: str, 
@@ -332,7 +408,7 @@ def plt_freq_ci_1d(df: dask.dataframe.core.DataFrame,
                    log_y: bool =False) -> pd.core.frame.DataFrame:
     """
     Displays a bar plot of the number of content items aggregated at one dimension in given df.
-    :param df: dask data frame with columns 'id', grouping_col, or already aggregated with count column 'ci_count'
+    :param df: dask data frame with columns 'id', grouping_col, or already aggregated with count column 'freq'
     :param grouping_col: column on which to aggregate the count (typically : 'year', 'type', 
                         'newspaper', or 'decade' if column is added by calling decade_from_year_df 
                         from helpers for example.
@@ -343,45 +419,107 @@ def plt_freq_ci_1d(df: dask.dataframe.core.DataFrame,
     :return: the aggregated df used for plotting
     """
     
+    return plt_generic_1d(df, grouping_col, 'freq', asc, hide_xtitle, log_y)
+
+
+def plt_avg_tl_1d(df: dask.dataframe.core.DataFrame, 
+                   grouping_col: str, 
+                   asc: bool =False, 
+                   hide_xtitle: bool =False, 
+                   log_y: bool =False) -> pd.core.frame.DataFrame:
+    """
+    Displays a bar plot of the average title length aggregated at one dimension in given df.
+    :param df: dask data frame with columns 'id', grouping_col, or already aggregated with count column 'avg'
+    :param grouping_col: column on which to aggregate the count (typically : 'year', 'type', 
+        'newspaper', or 'decade' if column is added by calling decade_from_year_df from helpers for example.)
+    :param asc: if set to True, plots bar in ascending order (default is descending order)
+    :param hide_xtitle: if set to True, doesn't display title for x axis(typically useful if x axis are years) 
+        (default is False)
+    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
+    :return: the aggregated df used for plotting
+    """
+    
+    return plt_generic_1d(df, grouping_col, 'avg', asc, hide_xtitle, log_y)
+
+
+def plt_generic_1d(df: dask.dataframe.core.DataFrame, 
+                   grouping_col: str, 
+                   facet: str ='freq',
+                   asc: bool =False, 
+                   hide_xtitle: bool =False, 
+                   log_y: bool =False) -> pd.core.frame.DataFrame:
+    """
+    Displays a bar plot either of the number of content items or of the average title_length (depending 
+    on parameter 'facet'), aggregated at one dimension in given df.
+    :param df: dask data frame with columns 'id', grouping_col, or already aggregated with count column 
+    'freq' or 'avg' (equal to value of parameter 'facet')
+    :param grouping_col: column on which to aggregate the count (typically : 'year', 'type', 
+        'newspaper', or 'decade' if column is added by calling decade_from_year_df from helpers for example.
+    :param freq_avg: if set to 'freq', counts the number of content item ID, if set to 'avg', computes the average 
+        title_length (further development may add other facets). Disclaimer : for the average facet, it doesn't 
+        consider NaN values.
+    :param asc: if set to True, plots bar in ascending order (default is descending order)
+    :param hide_xtitle: if set to True, doesn't display title for x axis 
+        (typically useful if x axis are years) (default is False)
+    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
+    :return: the aggregated df used for plotting
+    """
+    
+    assert facet in ['freq', 'avg'], 'Parameter facet should be a string of value either "freq" or "avg"'
+    
     # Perfom the group by and count operation and convert to pandas df
-    if 'ci_count' in df.columns:
-        count_df = df
+    if facet in df.columns:
+        agg_df = df
     else :
-        count_df = df.groupby(grouping_col).id.count().compute().reset_index(name='ci_count')
+        if facet=='freq':
+            agg_df = df.groupby(grouping_col).id.count().compute().reset_index(name=facet)
+
+        elif facet=='avg':
+            agg_df = df.groupby(grouping_col).title_length.mean().compute().reset_index(name=facet)
     
-    # Sort by count descending (default), or other if specified (time / ascending)
+    # Sort by avg descending (default), or other if specified (time / ascending)
     if grouping_col == 'year' or grouping_col=='decade' :
-        count_df.sort_values(by=grouping_col, inplace=True, ascending=True)
+        agg_df.sort_values(by=grouping_col, inplace=True, ascending=True)
     else:
-        count_df.sort_values(by='ci_count', inplace=True, ascending=asc)
+        agg_df.sort_values(by=facet, inplace=True, ascending=asc)
     
-    num_xlabels = len(count_df[grouping_col])
+    num_xlabels = len(agg_df[grouping_col])
     
     # Plot figure
     plt.figure(figsize=(20,5))
 
-    g = sns.barplot(x=grouping_col, y="ci_count", data=count_df, color='salmon');
+    g = sns.barplot(x=grouping_col, y=facet, data=agg_df, color='salmon');
     
-    plt_settings_Axes(g, count_df, grouping_col, hide_xtitle, log_y)
-    
-    return count_df
+    if facet=='freq':
+        plt_settings_Axes(g, agg_df, grouping_col, facet, hide_xtitle, log_y)
+    elif facet=='avg':
+        #TODO : change this
+        plt_settings_Axes(g, agg_df, grouping_col, facet, hide_xtitle, log_y)
+
+    return agg_df
 
 
 def plt_settings_Axes(g: matplotlib.axes.SubplotBase, 
                       count_df: dask.dataframe.core.DataFrame,
                       grouping_col: list,
+                      facet: str,
                       hide_xtitle: bool,
                       log_y: bool) -> None:
     '''
-    Helper function for plot settings, used in function plt_freq_ci_1d.
+    Helper function for plot settings, used in function plt_generic_1d.
     Modifies parameter g for setting titles, axis, formats, etc.
     :param g: matplotlib Axes which will be modified directly in the function.
     :param count_df: pandas dataframe which is plotted.
     :param grouping_col: column for x axis.
+    :param facet: paramter passed by function plt_generic_1d, giving information 
+    on whether we are plotting and average or a count.
     :param hide_xtitle: if set to True, doesn't display title for x axis 
     :param log_y: if set to True, plot in logarithmic scale (for y axis)
     :return: nothing. changes are done directly by modifiying parameter g.
     '''
+    
+    assert facet in ['freq', 'avg'], 'Parameter facet should be a string of value either "freq" or "avg"'
+
     # SET X AXIS
     # Labels
     # no particular setup if number of labels is less than the first threshold
@@ -415,19 +553,25 @@ def plt_settings_Axes(g: matplotlib.axes.SubplotBase,
     # log scale option
     if log_y :
         g.set_yscale("log")
-        g.set_ylabel('# content items (log scale)')
+        if facet=='freq':
+            g.set_ylabel('# content items (log scale)')
+        elif facet=='avg':
+            g.set_ylabel('average title length per content item (log scale)')
     
     else :
         # Title
-        g.set_ylabel('# content items')
+        g.set_ylabel('title length')
         
     # Labels
     ylabels = ['{:,.0f}'.format(y) for y in g.get_yticks()]
     g.set_yticklabels(ylabels)
     
     # Plot Title
-    g.set_title('Number of content items by %s' % grouping_col)
-    
+    if facet=='freq':
+        g.set_title('Number of content items by %s' % grouping_col)
+    elif facet=='avg':
+        g.set_title('Average title length of content items by %s' % grouping_col)
+
     
 def plt_freq_ci_2d(df: dask.dataframe.core.DataFrame,
                    grouping_col: list,
@@ -436,7 +580,8 @@ def plt_freq_ci_2d(df: dask.dataframe.core.DataFrame,
     
     """
     Displays a categorical plot of the number of content items aggregated at two dimension in given df.
-    :param df: dask data frame with column 'id' and column(s) in grouping_col, or with column 'ci_count' if already aggregated
+    :param df: dask data frame with column 'id' and column(s) in grouping_col, or with column 'freq' 
+        if already aggregated
     :param grouping_col: list of column(s) on which to aggregate the count (typically : 'year', 'type', 
        'newspaper', or 'decade'). The list must contain two column names :the first value is used as x axis 
        and the second one as categorical value. 
@@ -448,15 +593,69 @@ def plt_freq_ci_2d(df: dask.dataframe.core.DataFrame,
     :return: the aggregated df used for plotting
     """
     
+    return plt_generic_2d(df, grouping_col, 'freq', hide_xtitle, log_y)
+
+
+def plt_avg_tl_2d(df: dask.dataframe.core.DataFrame,
+                   grouping_col: list,
+                   hide_xtitle: bool =False,
+                   log_y: bool =False) -> pd.core.frame.DataFrame:
+    
+    """
+    Displays a categorical plot of the average title length of content items, aggregated at two dimension in given df.
+    :param df: dask data frame with column 'title_length' and column(s) in grouping_col, or with column 'avg' 
+        if already aggregated
+    :param grouping_col: list of column(s) on which to aggregate the average (typically : 'year', 'type', 
+       'newspaper', or 'decade'). The list must contain two column names :the first value is used as x axis 
+       and the second one as categorical value. 
+       It is not recommanded to use a time column (year or decade) as second column name. 
+       Sorting will be done in the same order.
+    :param hide_xtitle: if set to True, doesn't display title for x axis (typically useful if x axis are years) 
+        (default is False)
+    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
+    :return: the aggregated df used for plotting
+    """
+    
+    return plt_generic_2d(df, grouping_col, 'avg', hide_xtitle, log_y)
+
+
+def plt_generic_2d(df: dask.dataframe.core.DataFrame,
+                   grouping_col: list,
+                   facet: str,
+                   hide_xtitle: bool =False,
+                   log_y: bool =False) -> pd.core.frame.DataFrame:
+    
+    """
+    Displays a categorical plot of the number of content items or the average title length of content items,
+        depending on parameter 'facet', aggregated at two dimension in given df.
+    :param df: dask data frame with column 'id' or 'title_length' (depending on parameter 'facet') 
+        and column(s) in grouping_col, or with column facet (i.e. 'freq' or 'avg'), if already aggregated.
+    :param grouping_col: list of column(s) on which to aggregate (typically : 'year', 'type', 
+       'newspaper', or 'decade'). The list must contain two column names :the first value is used as x axis 
+       and the second one as categorical value. 
+       It is not recommanded to use a time column (year or decade) as second column name. 
+       Sorting will be done in the same order.
+    :param hide_xtitle: if set to True, doesn't display title for x axis (typically useful if x axis are years) 
+        (default is False)
+    :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
+    :return: the aggregated df used for plotting
+    """
+    
+    assert facet in ['freq', 'avg'], 'Parameter facet should be a string of value either "freq" or "avg"'
+
     assert len(grouping_col)==2, "grouping_col parameter must be a list of length 2."
     assert not (grouping_col[1]=='year' or grouping_col[1]=='decade'), "Time cannot be used as categorical variable."
     
-    if 'ci_count' in df.columns:
-        count_df = df
+    if facet in df.columns:
+        agg_df = df
     else :
-        count_df = df.groupby(grouping_col).id.count().compute().reset_index(name='ci_count')
+        if facet=='freq':
+            agg_df = df.groupby(grouping_col).id.count().compute().reset_index(name=facet)
+
+        elif facet=='avg':
+            agg_df = df.groupby(grouping_col).title_length.mean().compute().reset_index(name=facet)
     
-    if len(count_df) > num_bars_threshold:
+    if len(agg_df) > num_bars_threshold:
         raise ValueError("The total number of bars to plot exceeds limit: "+ num_bars_thershold +". Not able to plot figure.\
         Please reduce by filtering the dataframe on some features.") 
     
@@ -467,31 +666,37 @@ def plt_freq_ci_2d(df: dask.dataframe.core.DataFrame,
     
     
     # Sort by count descending (default), or other if specified (time / ascending)
-    count_df.sort_values(by=[grouping_col[0], 'ci_count'], inplace=True, ascending=[ascending_0, False])
+    agg_df.sort_values(by=[grouping_col[0], facet], inplace=True, ascending=[ascending_0, False])
     
-    g = sns.catplot(x=grouping_col[0], y="ci_count", data=count_df, \
+    g = sns.catplot(x=grouping_col[0], y=facet, data=agg_df, \
                 hue=grouping_col[1], kind='bar', height=5, aspect=3)
     
-    plt_settings_FacetGrid(g, count_df, grouping_col, hide_xtitle, log_y)
+    plt_settings_FacetGrid(g, agg_df, grouping_col, facet, hide_xtitle, log_y)
     
-    return count_df
+    return agg_df
 
 
 def plt_settings_FacetGrid(g: sns.axisgrid.FacetGrid, 
                            count_df: dask.dataframe.core.DataFrame, 
-                           grouping_col: list, 
+                           grouping_col: list,
+                           facet: str,
                            hide_xtitle: bool, 
                            log_y: bool) -> None:
     '''
-    Helper function for plot settings, used in function plt_freq_ci_2d.
+    Helper function for plot settings, used in function plt_generic_2d.
     Modifies parameter g for setting titles, axis, formats, etc.
     :param g: seaborn FacetGrid which will be modified directly in the function.
     :param count_df: pandas dataframe which is plotted.
     :param grouping_col: list of columns for category and x axis.
+    :param facet: parameter passed by function plt_generic_2d, giving information 
+        on whether we are plotting and average or a count.
     :param hide_xtitle: if set to True, doesn't display title for x axis 
     :param log_y: if set to True, plot in logarithmic scale (for y axis)
     :return: nothing. changes are done directly by modifiying parameter g.
     '''
+    
+    assert facet in ['freq', 'avg'], 'Parameter facet should be a string of value either "freq" or "avg"'
+
     axis_col = grouping_col[0]
     
     # SET X AXIS
@@ -531,7 +736,10 @@ def plt_settings_FacetGrid(g: sns.axisgrid.FacetGrid,
         g.set(yscale="log")
     
     # Title
-    ytitle = '# content items (log scale)' if log_y else '# content items'
+    if facet=='freq':
+        ytitle = '# content items (log scale)' if log_y else '# content items'
+    elif facet=='avg':
+        ytitle = 'title length (log scale)' if log_y else 'title length' 
         
     # Labels        
     for ax in g.axes[0]:
@@ -539,5 +747,9 @@ def plt_settings_FacetGrid(g: sns.axisgrid.FacetGrid,
     
     # Plot Titles
     g.set_axis_labels(x_var=xtitle, y_var=ytitle);
-    g.ax.set_title('Number of content items by %s per %s' % (grouping_col[0], grouping_col[1]))
+    if facet=='freq':
+        g.ax.set_title('Number of content items by %s per %s' % (grouping_col[0], grouping_col[1]))
+
+    elif facet=='avg':
+        g.ax.set_title('Average title length of content items by %s per %s' % (grouping_col[0], grouping_col[1]))
 
