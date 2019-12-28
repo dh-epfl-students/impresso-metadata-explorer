@@ -311,7 +311,7 @@ def licenses_ci_df(ci_df:  dask.dataframe.core.DataFrame) -> None:
     Helper function to get the access rights at the level of content items :
     Loads and join the sql table on issues, with the df passed as parameter.
     Warning : this function is very sensitive to any change in the column names 
-    for the df passed as parameter of the one in sql.
+    for the df passed as parameter and for the one in sql.
     :param df: dask data frame with column 'id' having format: NNN-yyyy-mm-dd-t-ixxxx 
     from which we can extract the issue_id : NNN-yyyy-mm-dd-t
     :return: Merged dataframe, with access right for each content item'''
