@@ -13,9 +13,21 @@ from typing import Iterable
 
 from  matplotlib.ticker import FuncFormatter
 
+# ---------------------- CONSTANTS ---------------------- #
+
+LABEL_THRESHOLD_ROTATION = 30
+LABEL_THRESHOLD_SELECT = 100
+NUM_BARS_THRESHOLD = 350
+MAX_CAT = 5
+COLOR = 'salmon'
+HEIGHT=5
+#HEIGHT=20
+ASPECT=3
+#ASPECT=5
+
 # ----------------------- ISSUES ----------------------- #
 #plot_freq_issues
-def plot_issues_time_id(time_gran: str,
+def plt_freq_issues_time(time_gran: str,
                         start_date: int = None,
                         end_date: int = None,
                         np_ids: Iterable = None,
@@ -23,7 +35,7 @@ def plot_issues_time_id(time_gran: str,
                         df: pd.core.frame.DataFrame = None,
                         ppty: str = None,
                         ppty_value: str = None,
-                        batch_size: int = None) -> None:
+                        batch_size: int = None) -> pd.core.frame.DataFrame:
     """
     General plotting function for issues frequency analysis (histogram).
     :param time_gran: granularity in time, either 'year' or 'decade'
@@ -42,14 +54,14 @@ def plot_issues_time_id(time_gran: str,
     # load data from SQL if needed
     if df is None:
         issues_df = read_table('impresso.issues', db_engine())
-
+    
     issues_df, np_ids_filtered = filter_df(issues_df, start_date, end_date, np_ids, country, ppty, ppty_value)
 
     # check time_granularity is either 'year' or 'decade'
     assert (time_gran == 'decade' or time_gran == 'year'), "Time granularity must be either 'decade' or 'year'."
 
     # create it decade column if doesn't exist yet
-    if time_gran == 'decade' and 'decade' not in df.columns:
+    if time_gran == 'decade' and 'decade' not in issues_df.columns:
         issues_df = decade_from_year_df(issues_df)
 
     # group and count for the histogram
@@ -57,16 +69,19 @@ def plot_issues_time_id(time_gran: str,
 
     # if batch_size not specified : plot all newspapers on the same figure
     if batch_size is None:
-        g = sns.catplot(x=time_gran, y="count", hue="newspaper_id", kind="bar", data=count_df, height=5, aspect=2)
-        display_setup(g, display_x_label=False, y_label='Number of issues',
-                      title='Issue frequency per newspaper, through time.')
+        g = sns.catplot(x=time_gran, y="count", hue="newspaper_id", kind="bar", data=count_df, height=HEIGHT, aspect=ASPECT)
+
+        plt_settings_FacetGrid(g, count_df, [time_gran, 'newspaper'], \
+                               facet='freq', level='issues', hide_xtitle=True, log_y=False)
 
     # else plot by batches (no intelligent batching is done)
     else:
         assert (0 < batch_size and batch_size < 20), "Batch size must be between 1 and 19."
-        catplot_by_batch_np(count_df, np_ids_filtered, 'decade', 'count', 'newspaper_id', batch_size,
+        catplot_by_batch_np(count_df, np_ids_filtered, time_gran, 'count', 'newspaper_id', batch_size,
                             display_x_label=False, y_label='Number of issues',
                             title='Issue frequency per newspaper, through time.')
+        
+    return count_df
 
 #plot_freq_issues_batch
 def catplot_by_batch_np(df: pd.core.frame.DataFrame,
@@ -74,7 +89,7 @@ def catplot_by_batch_np(df: pd.core.frame.DataFrame,
                         xp: str,
                         yp: str,
                         huep: str,
-                        max_cat: int = 5,
+                        max_cat: int = MAX_CAT,
                         rotation: int = None,
                         display_x_label: bool = True,
                         display_y_label: bool = True,
@@ -105,48 +120,9 @@ def catplot_by_batch_np(df: pd.core.frame.DataFrame,
     # Plot by batches
     for i, b in enumerate(np_batch):
         batch = filter_df_by_np_id(df, b)
-        g = sns.catplot(x=xp, y=yp, hue=huep, kind="bar", data=batch, height=5, aspect=2)
-        display_setup(g, rotation, display_x_label, display_y_label, x_label, y_label, title)
+        g = sns.catplot(x=xp, y=yp, hue=huep, kind="bar", data=batch, height=HEIGHT, aspect=ASPECT)
 
-        
-# plt settings
-def display_setup(g: sns.axisgrid.FacetGrid,
-                  rotation: int = None,
-                  display_x_label: bool = True,
-                  display_y_label: bool =True,
-                  x_label: str = None,
-                  y_label: str = None,
-                  title: str = None) -> None:
-    """
-    Common setup of seaborn plots : set titles and other stuff.
-    :param g: the seaborn FacetGrid on which to do settings.
-    :param rotation: degree of rotation for the x axis labels.
-    :param display_x_label: boolean, set to False if you want to hide the x axis title. (default is True)
-    :param display_y_label: boolean, set to False if you want to hide the y axis title. (default is True)
-    :param x_label: specify particular x axis title
-    :param y_label: specify particular y axis title
-    :param title: specify title
-    :return: Nothing. Modifies the g parameter.
-    """
-
-    # set axis titles
-    if not display_x_label:
-        g.set_xlabels('')
-    elif x_label is not None:
-        g.set_xlabels(x_label)
-
-    if not display_y_label:
-        g.set_ylabels('')
-    elif y_label is not None:
-        g.set_ylabels(y_label)
-
-    # set rotation on x axis
-    if rotation is not None:
-        g.set_xticklabels(rotation=rotation)
-
-    # set title DOESNT WORK
-    if title is not None:
-        g.set_titles(title)
+        plt_settings_FacetGrid(g, batch, [xp, 'newspaper'], facet='freq', level='issues', hide_xtitle=True, log_y=False)
 
 
 # ----------------------- LICENCES ----------------------- #
@@ -246,10 +222,6 @@ def plot_licences_np(count_df: pd.core.frame.DataFrame,
         
         
 # ----------------------- CONTENT ITEMS ----------------------- #
-
-label_threshold_rotation = 30
-label_threshold_select = 100
-num_bars_threshold = 350
 
 def plt_freq_ci_filter(df: dask.dataframe.core.DataFrame, 
                 grouping_col: list, 
@@ -486,9 +458,9 @@ def plt_generic_1d(df: dask.dataframe.core.DataFrame,
     num_xlabels = len(agg_df[grouping_col])
     
     # Plot figure
-    plt.figure(figsize=(20,5))
+    plt.figure(figsize=(HEIGHT,ASPECT))
 
-    g = sns.barplot(x=grouping_col, y=facet, data=agg_df, color='salmon');
+    g = sns.barplot(x=grouping_col, y=facet, data=agg_df, color=COLOR);
     
     if facet=='freq':
         plt_settings_Axes(g, agg_df, grouping_col, facet, hide_xtitle, log_y)
@@ -525,11 +497,11 @@ def plt_settings_Axes(g: matplotlib.axes.SubplotBase,
     # no particular setup if number of labels is less than the first threshold
     num_xlabels = len(count_df[grouping_col])
 
-    if num_xlabels < label_threshold_rotation:
+    if num_xlabels < LABEL_THRESHOLD_ROTATION :
         g.set_xticklabels(count_df[grouping_col])
         
     # rotate by 90 degrees if number of labels is between first and second threshold
-    elif num_xlabels <  label_threshold_select:
+    elif num_xlabels <  LABEL_THRESHOLD_SELECT :
         g.set_xticklabels(count_df[grouping_col], rotation=90)
        
     # display only certain labels (and rotate by 45 degrees) if number of labels is higher
@@ -655,7 +627,7 @@ def plt_generic_2d(df: dask.dataframe.core.DataFrame,
         elif facet=='avg':
             agg_df = df.groupby(grouping_col).title_length.mean().compute().reset_index(name=facet)
     
-    if len(agg_df) > num_bars_threshold:
+    if len(agg_df) > NUM_BARS_THRESHOLD :
         raise ValueError("The total number of bars to plot exceeds limit: "+ num_bars_thershold +". Not able to plot figure.\
         Please reduce by filtering the dataframe on some features.") 
     
@@ -669,9 +641,9 @@ def plt_generic_2d(df: dask.dataframe.core.DataFrame,
     agg_df.sort_values(by=[grouping_col[0], facet], inplace=True, ascending=[ascending_0, False])
     
     g = sns.catplot(x=grouping_col[0], y=facet, data=agg_df, \
-                hue=grouping_col[1], kind='bar', height=5, aspect=3)
+                hue=grouping_col[1], kind='bar', height=HEIGHT, aspect=ASPECT)
     
-    plt_settings_FacetGrid(g, agg_df, grouping_col, facet, hide_xtitle, log_y)
+    plt_settings_FacetGrid(g, agg_df, grouping_col, facet, 'content items', hide_xtitle, log_y)
     
     return agg_df
 
@@ -680,6 +652,7 @@ def plt_settings_FacetGrid(g: sns.axisgrid.FacetGrid,
                            count_df: dask.dataframe.core.DataFrame, 
                            grouping_col: list,
                            facet: str,
+                           level: str,
                            hide_xtitle: bool, 
                            log_y: bool) -> None:
     '''
@@ -696,6 +669,10 @@ def plt_settings_FacetGrid(g: sns.axisgrid.FacetGrid,
     '''
     
     assert facet in ['freq', 'avg'], 'Parameter facet should be a string of value either "freq" or "avg"'
+    assert level in ['issues', 'content items'], 'Parameter level should be a string of value either \
+    "issues" or "content items"'
+    assert not (level=='issues' and facet=='avg'), 'You cannot compute an average at the issue level.\
+    Please check your parameters are matching.'
 
     axis_col = grouping_col[0]
     
@@ -705,11 +682,11 @@ def plt_settings_FacetGrid(g: sns.axisgrid.FacetGrid,
     
     num_xlabels = count_df[axis_col].nunique()
     
-    if num_xlabels < label_threshold_rotation:
+    if num_xlabels < LABEL_THRESHOLD_ROTATION :
         g.set_xticklabels(count_df[axis_col])
         
     # rotate by 90 degrees if number of labels is between first and second threshold
-    elif num_xlabels <  label_threshold_select:
+    elif num_xlabels < LABEL_THRESHOLD_SELECT :
         g.set_xticklabels(count_df[axis_col], rotation=90)
        
     # display only certain labels (and rotate by 45 degrees) if number of labels is higher
@@ -737,7 +714,7 @@ def plt_settings_FacetGrid(g: sns.axisgrid.FacetGrid,
     
     # Title
     if facet=='freq':
-        ytitle = '# content items (log scale)' if log_y else '# content items'
+        ytitle = '# %s (log scale)' % level if log_y else '# %s' % level
     elif facet=='avg':
         ytitle = 'title length (log scale)' if log_y else 'title length' 
         
@@ -748,7 +725,7 @@ def plt_settings_FacetGrid(g: sns.axisgrid.FacetGrid,
     # Plot Titles
     g.set_axis_labels(x_var=xtitle, y_var=ytitle);
     if facet=='freq':
-        g.ax.set_title('Number of content items by %s per %s' % (grouping_col[0], grouping_col[1]))
+        g.ax.set_title('Number of %s by %s per %s' % (level, grouping_col[0], grouping_col[1]))
 
     elif facet=='avg':
         g.ax.set_title('Average title length of content items by %s per %s' % (grouping_col[0], grouping_col[1]))
