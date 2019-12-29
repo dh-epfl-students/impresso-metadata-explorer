@@ -1,6 +1,7 @@
 from typing import Iterable
 from datetime import date
 
+import numpy as np
 import pandas as pd
 import dask
 import dask.dataframe
@@ -173,6 +174,7 @@ def check_all_column_count(df: pd.core.frame.DataFrame,
 
     # Convert pd.Series to pd.core.frame.DataFrame (for plotting for example)
     value_to_check = value_to_check.reset_index(name='count')
+
     return value_to_check, all_same, column_different_count
 
 
@@ -190,8 +192,33 @@ def group_and_count(df: pd.core.frame.DataFrame,
         a list containing the name of the columns for which some count values are different than the selected column.
         """
 
+    assert len(grouping_columns) == 2, "This function only works for two grouping levels."
+    
     count_df = df.groupby(grouping_columns).count()
-    return check_all_column_count(df, count_df, grouping_columns, column_select, print_)
+    
+    # Keep only the column we need
+    count_df = count_df[column_select].rename('count')
+    
+    # For each index of the first level (grouping_columns[0], usually the newspaper_id),
+    # check if a time value is missing.
+    my_dict = {}
+    for idx0 in count_df.index.get_level_values(0).unique():
+        sub_df = count_df.xs(idx0,level=grouping_columns[0]).reset_index()
+        
+        if grouping_columns[1] == 'year' :
+            idx = np.arange(sub_df['year'].min(), sub_df['year'].max()+1)
+            sub_df = sub_df.set_index('year').reindex(idx).reset_index().fillna({'count':0}).fillna(method='ffill')
+
+        if grouping_columns[1] == 'decade' :
+            idx = np.arange(sub_df['decade'].min(), sub_df['decade'].max()+10, step=10)
+            sub_df = sub_df.set_index('decade').reindex(idx).reset_index().fillna({'count':0}).fillna(method='ffill')
+
+        my_dict[idx0] = sub_df
+        
+    result = pd.concat(my_dict.values(), keys=my_dict.keys()).reset_index()
+    result = result.drop(['level_1'], axis=1).rename(columns={'level_0': grouping_columns[0]})
+    
+    return result
 
 
 def filter_df(df: pd.core.frame.DataFrame,

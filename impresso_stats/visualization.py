@@ -65,7 +65,7 @@ def plt_freq_issues_time(time_gran: str,
         issues_df = decade_from_year_df(issues_df)
 
     # group and count for the histogram
-    count_df, _, _ = group_and_count(issues_df, ['newspaper_id', time_gran], 'id', print_=False)
+    count_df = group_and_count(issues_df, ['newspaper_id', time_gran], 'id', print_=False)
 
     # if batch_size not specified : plot all newspapers on the same figure
     if batch_size is None:
@@ -162,11 +162,11 @@ def plot_licences(facet: str = 'newspapers',
     result_df = decade_from_year_df(result_df)
 
     if facet == 'newspapers':
-        count_df, _, _ = group_and_count(result_df, ['newspaper_id', 'access_rights'], 'id')
+        count_df = group_and_count(result_df, ['newspaper_id', 'access_rights'], 'id')
         plot_licences_np(count_df, np_ids, batch_size)
 
     elif facet == 'time':
-        count_df, _, _ = group_and_count(result_df, ['decade', 'access_rights'], 'id')
+        count_df = group_and_count(result_df, ['decade', 'access_rights'], 'id')
         plot_licences_time(count_df, np_ids, batch_size)
     else:
         print("Nothing can be done : facet parameter should be either 'newspapers', or 'time'.")
@@ -452,6 +452,12 @@ def plt_generic_1d(df: dask.dataframe.core.DataFrame,
     # Sort by avg descending (default), or other if specified (time / ascending)
     if grouping_col == 'year' or grouping_col=='decade' :
         agg_df.sort_values(by=grouping_col, inplace=True, ascending=True)
+        
+        # Fill potential gaps in time
+        time_step = 1 if grouping_col == 'year' else 10
+        idx = np.arange(agg_df[grouping_col].min(), agg_df[grouping_col].max()+time_step, step=time_step)
+        agg_df = agg_df.set_index(grouping_col).reindex(idx).reset_index().fillna({facet:0}).fillna(method='ffill')
+        
     else:
         agg_df.sort_values(by=facet, inplace=True, ascending=asc)
     
@@ -635,7 +641,6 @@ def plt_generic_2d(df: dask.dataframe.core.DataFrame,
     cat_dim = grouping_col[1]
     
     ascending_0 = grouping_col[0]=='year' or grouping_col[0]=='decade'
-    
     
     # Sort by count descending (default), or other if specified (time / ascending)
     agg_df.sort_values(by=[grouping_col[0], facet], inplace=True, ascending=[ascending_0, False])
