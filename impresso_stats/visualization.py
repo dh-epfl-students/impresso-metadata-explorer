@@ -662,6 +662,9 @@ def plt_generic_2d(df: dask.dataframe.core.DataFrame,
             agg_df = pd.concat(my_dict.values(), keys=my_dict.keys()).reset_index()
 
             agg_df = agg_df.drop(['level_1'], axis=1).rename(columns={'level_0': grouping_col[1]})
+            
+        else :
+            agg_df = agg_df.reset_index()
     
     
     # Check if df is not too big for plotting
@@ -675,7 +678,7 @@ def plt_generic_2d(df: dask.dataframe.core.DataFrame,
     cat_dim = grouping_col[1]
     
     ascending_0 = grouping_col[0]=='year' or grouping_col[0]=='decade'
-    
+        
     agg_df.sort_values(by=[grouping_col[0], facet], inplace=True, ascending=[ascending_0, False])
     
     # Plot
@@ -723,11 +726,11 @@ def plt_settings_FacetGrid(g: sns.axisgrid.FacetGrid,
     num_xlabels = count_df[axis_col].nunique()
     
     if num_xlabels < LABEL_THRESHOLD_ROTATION :
-        g.set_xticklabels(count_df[axis_col])
+        g.set_xticklabels(count_df[axis_col].unique())
         
     # rotate by 90 degrees if number of labels is between first and second threshold
     elif num_xlabels < LABEL_THRESHOLD_SELECT :
-        g.set_xticklabels(count_df[axis_col], rotation=90)
+        g.set_xticklabels(count_df[axis_col].unique(), rotation=90)
        
     # display only certain labels (and rotate by 45 degrees) if number of labels is higher
     else :        
