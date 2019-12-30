@@ -21,9 +21,9 @@ NUM_BARS_THRESHOLD = 350
 MAX_CAT = 5
 COLOR = 'salmon'
 HEIGHT=5
-#HEIGHT=20
+FIG_HEIGHT=20
 ASPECT=3
-#ASPECT=5
+FIG_ASPECT=5
 
 # ----------------------- ISSUES ----------------------- #
 #plot_freq_issues
@@ -449,30 +449,26 @@ def plt_generic_1d(df: dask.dataframe.core.DataFrame,
         elif facet=='avg':
             agg_df = df.groupby(grouping_col).title_length.mean().compute().reset_index(name=facet)
     
-    # Sort by avg descending (default), or other if specified (time / ascending)
-    if grouping_col == 'year' or grouping_col=='decade' :
-        agg_df.sort_values(by=grouping_col, inplace=True, ascending=True)
-        
-        # Fill potential gaps in time
-        time_step = 1 if grouping_col == 'year' else 10
-        idx = np.arange(agg_df[grouping_col].min(), agg_df[grouping_col].max()+time_step, step=time_step)
-        agg_df = agg_df.set_index(grouping_col).reindex(idx).reset_index().fillna({facet:0}).fillna(method='ffill')
-        
-    else:
-        agg_df.sort_values(by=facet, inplace=True, ascending=asc)
+        # Sort by avg descending (default), or other if specified (time / ascending)
+        if grouping_col == 'year' or grouping_col=='decade' :
+            agg_df.sort_values(by=grouping_col, inplace=True, ascending=True)
+
+            # Fill potential gaps in time
+            time_step = 1 if grouping_col == 'year' else 10
+            idx = np.arange(agg_df[grouping_col].min(), agg_df[grouping_col].max()+time_step, step=time_step)
+            agg_df = agg_df.set_index(grouping_col).reindex(idx).reset_index().fillna({facet:0}).fillna(method='ffill')
+
+        else:
+            agg_df.sort_values(by=facet, inplace=True, ascending=asc)
     
     num_xlabels = len(agg_df[grouping_col])
     
     # Plot figure
-    plt.figure(figsize=(HEIGHT,ASPECT))
+    plt.figure(figsize=(FIG_HEIGHT,FIG_ASPECT))
 
     g = sns.barplot(x=grouping_col, y=facet, data=agg_df, color=COLOR);
-    
-    if facet=='freq':
-        plt_settings_Axes(g, agg_df, grouping_col, facet, hide_xtitle, log_y)
-    elif facet=='avg':
-        #TODO : change this
-        plt_settings_Axes(g, agg_df, grouping_col, facet, hide_xtitle, log_y)
+
+    plt_settings_Axes(g, agg_df, grouping_col, facet, hide_xtitle, log_y)
 
     return agg_df
 
@@ -534,11 +530,14 @@ def plt_settings_Axes(g: matplotlib.axes.SubplotBase,
         if facet=='freq':
             g.set_ylabel('# content items (log scale)')
         elif facet=='avg':
-            g.set_ylabel('average title length per content item (log scale)')
+            g.set_ylabel('title length (log scale)')
     
-    else :
-        # Title
-        g.set_ylabel('title length')
+    else :       
+        if facet=='freq':
+            g.set_ylabel('# content items')
+        elif facet=='avg':
+            g.set_ylabel('title length')
+
         
     # Labels
     ylabels = ['{:,.0f}'.format(y) for y in g.get_yticks()]
@@ -624,30 +623,66 @@ def plt_generic_2d(df: dask.dataframe.core.DataFrame,
     assert len(grouping_col)==2, "grouping_col parameter must be a list of length 2."
     assert not (grouping_col[1]=='year' or grouping_col[1]=='decade'), "Time cannot be used as categorical variable."
     
+    # Aggregation operation: groupby and mean or count
     if facet in df.columns:
-        agg_df = df
+        agg_df = df.copy()
     else :
         if facet=='freq':
-            agg_df = df.groupby(grouping_col).id.count().compute().reset_index(name=facet)
+            agg_df = df.groupby(grouping_col).id.count().compute().rename(facet)#.reset_index(name=facet)
 
         elif facet=='avg':
-            agg_df = df.groupby(grouping_col).title_length.mean().compute().reset_index(name=facet)
+            agg_df = df.groupby(grouping_col).title_length.mean().compute().rename(facet)#.reset_index(name=facet)
     
+
+        # Fill potential gaps in time if aggregating at time dimensionn
+        '''
+        if grouping_col[0]=='year' or grouping_col[0]=='decade' :
+            #agg_df.sort_values(by=grouping_col, inplace=True, ascending=True)
+
+            time_step = 1 if grouping_col[0] == 'year' else 10
+            idx = np.arange(agg_df[grouping_col[0]].min(), agg_df[grouping_col[0]].max()+time_step, step=time_step)
+            agg_df = agg_df.set_index(grouping_col[0]).reindex(idx).reset_index().fillna({facet:0}).fillna(method='ffill')
+
+            return agg_df
+        '''
+    
+        my_dict = {}
+        if grouping_col[0]=='year' or grouping_col[0]=='decade' :
+
+            for idx1 in agg_df.index.get_level_values(1).unique():
+                sub_df = agg_df.xs(idx1,level=grouping_col[1]).reset_index()
+
+                time_step = 1 if grouping_col[0] == 'year' else 10
+
+                idx = np.arange(sub_df[grouping_col[0]].min(), sub_df[grouping_col[0]].max()+ time_step, step=time_step)
+                sub_df = sub_df.set_index(grouping_col[0]).reindex(idx).reset_index().fillna({facet:0}).fillna(method='ffill')
+
+                my_dict[idx1] = sub_df
+
+            agg_df = pd.concat(my_dict.values(), keys=my_dict.keys()).reset_index()
+
+            agg_df = agg_df.drop(['level_1'], axis=1).rename(columns={'level_0': grouping_col[1]})
+    
+    
+    # Check if df is not too big for plotting
     if len(agg_df) > NUM_BARS_THRESHOLD :
-        raise ValueError("The total number of bars to plot exceeds limit: "+ num_bars_thershold +". Not able to plot figure.\
-        Please reduce by filtering the dataframe on some features.") 
+        raise ValueError("The total number of bars to plot exceeds limit: "+ str(NUM_BARS_THRESHOLD) + \
+                         "(you have: "+ str(len(agg_df)) +"). Not able to plot figure. \
+                         Please reduce by filtering the dataframe on some features.") 
     
+    # Sort by count descending (default), or other if specified (time / ascending)
     aggr_dim = grouping_col[0]
     cat_dim = grouping_col[1]
     
     ascending_0 = grouping_col[0]=='year' or grouping_col[0]=='decade'
     
-    # Sort by count descending (default), or other if specified (time / ascending)
     agg_df.sort_values(by=[grouping_col[0], facet], inplace=True, ascending=[ascending_0, False])
     
+    # Plot
     g = sns.catplot(x=grouping_col[0], y=facet, data=agg_df, \
                 hue=grouping_col[1], kind='bar', height=HEIGHT, aspect=ASPECT)
     
+    # Plot settings
     plt_settings_FacetGrid(g, agg_df, grouping_col, facet, 'content items', hide_xtitle, log_y)
     
     return agg_df
