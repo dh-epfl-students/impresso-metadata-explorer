@@ -179,12 +179,14 @@ def check_all_column_count(df: pd.core.frame.DataFrame,
 
 
 def group_and_count(df: pd.core.frame.DataFrame,
-                    grouping_columns: Iterable,
+                    grouping_col: str,
+                    time_gran: str,
                     column_select: str,
                     print_: bool = False) -> (pd.core.frame.DataFrame, bool, Iterable):
     """ Perform group by and count on a data set.
         :param pd.core.frame.DataFrame df: Source data frame.
-        :param Iterable grouping_columns: List of columns which the df should be grouped by.
+        :param str grouping_col: columns which the df should be grouped by (with the time).
+        :param str time_gran: 'year' or 'decade' depending on the precision you want.
         :param str column_select: Reference column that we keep for the count values.
         :param bool print_: Whether we print some info in case of count differences between the columns.
         :return: Tuple of three values : the result data frame with a count column,
@@ -192,31 +194,31 @@ def group_and_count(df: pd.core.frame.DataFrame,
         a list containing the name of the columns for which some count values are different than the selected column.
         """
 
-    assert len(grouping_columns) == 2, "This function only works for two grouping levels."
+    assert time_gran=='year' or time_gran=='decade', "Value of 'time_gran' parameter should be either 'year' of 'decade'."
     
-    count_df = df.groupby(grouping_columns).count()
+    count_df = df.groupby([grouping_col, time_gran]).count()
     
     # Keep only the column we need
     count_df = count_df[column_select].rename('count')
     
-    # For each index of the first level (grouping_columns[0], usually the newspaper_id),
+    # For each index of the first level (grouping_col, usually the newspaper_id),
     # check if a time value is missing.
+    
+    time_step = 1 if grouping_col == 'year' else 10
+    max_date = count_df.reset_index()[time_gran].max()
+    min_date = count_df.reset_index()[time_gran].min()
+    idx = np.arange(min_date, max_date+ time_step, time_step)
+
     my_dict = {}
     for idx0 in count_df.index.get_level_values(0).unique():
-        sub_df = count_df.xs(idx0,level=grouping_columns[0]).reset_index()
+        sub_df = count_df.xs(idx0,level=grouping_col).reset_index()
         
-        if grouping_columns[1] == 'year' :
-            idx = np.arange(sub_df['year'].min(), sub_df['year'].max()+1)
-            sub_df = sub_df.set_index('year').reindex(idx).reset_index().fillna({'count':0}).fillna(method='ffill')
-
-        if grouping_columns[1] == 'decade' :
-            idx = np.arange(sub_df['decade'].min(), sub_df['decade'].max()+10, step=10)
-            sub_df = sub_df.set_index('decade').reindex(idx).reset_index().fillna({'count':0}).fillna(method='ffill')
+        sub_df = sub_df.set_index(time_gran).reindex(idx).reset_index().fillna({'count':0}).fillna(method='ffill')
 
         my_dict[idx0] = sub_df
         
     result = pd.concat(my_dict.values(), keys=my_dict.keys()).reset_index()
-    result = result.drop(['level_1'], axis=1).rename(columns={'level_0': grouping_columns[0]})
+    result = result.drop(['level_1'], axis=1).rename(columns={'level_0': grouping_col})
     
     return result
 

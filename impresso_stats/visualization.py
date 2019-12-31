@@ -65,7 +65,7 @@ def plt_freq_issues_time(time_gran: str,
         issues_df = decade_from_year_df(issues_df)
 
     # group and count for the histogram
-    count_df = group_and_count(issues_df, ['newspaper_id', time_gran], 'id', print_=False)
+    count_df = group_and_count(issues_df, 'newspaper_id', time_gran, 'id', print_=False)
 
     # if batch_size not specified : plot all newspapers on the same figure
     if batch_size is None:
@@ -116,10 +116,11 @@ def catplot_by_batch_np(df: pd.core.frame.DataFrame,
         np_batch = [np_list[x:x + max_cat] for x in range(0, len(np_list), max_cat)]
     else:
         np_batch = [np_list]
-
+    
     # Plot by batches
     for i, b in enumerate(np_batch):
         batch = filter_df_by_np_id(df, b)
+
         g = sns.catplot(x=xp, y=yp, hue=huep, kind="bar", data=batch, height=HEIGHT, aspect=ASPECT)
 
         plt_settings_FacetGrid(g, batch, [xp, 'newspaper'], facet='freq', level='issues', hide_xtitle=True, log_y=False)
@@ -635,26 +636,18 @@ def plt_generic_2d(df: dask.dataframe.core.DataFrame,
     
 
         # Fill potential gaps in time if aggregating at time dimensionn
-        '''
-        if grouping_col[0]=='year' or grouping_col[0]=='decade' :
-            #agg_df.sort_values(by=grouping_col, inplace=True, ascending=True)
-
-            time_step = 1 if grouping_col[0] == 'year' else 10
-            idx = np.arange(agg_df[grouping_col[0]].min(), agg_df[grouping_col[0]].max()+time_step, step=time_step)
-            agg_df = agg_df.set_index(grouping_col[0]).reindex(idx).reset_index().fillna({facet:0}).fillna(method='ffill')
-
-            return agg_df
-        '''
     
         my_dict = {}
         if grouping_col[0]=='year' or grouping_col[0]=='decade' :
 
+            time_step = 1 if grouping_columns[0] == 'year' else 10
+            max_date = agg_df.reset_index()[grouping_columns[0]].max()
+            min_date = agg_df.reset_index()[grouping_columns[0]].min()
+            idx = np.arange(min_date, max_date+ time_step, time_step)
+    
             for idx1 in agg_df.index.get_level_values(1).unique():
                 sub_df = agg_df.xs(idx1,level=grouping_col[1]).reset_index()
-
-                time_step = 1 if grouping_col[0] == 'year' else 10
-
-                idx = np.arange(sub_df[grouping_col[0]].min(), sub_df[grouping_col[0]].max()+ time_step, step=time_step)
+                
                 sub_df = sub_df.set_index(grouping_col[0]).reindex(idx).reset_index().fillna({facet:0}).fillna(method='ffill')
 
                 my_dict[idx1] = sub_df
