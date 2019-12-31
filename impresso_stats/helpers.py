@@ -56,16 +56,23 @@ def np_by_property(newspapers_metadata_df: pd.core.frame.DataFrame,
 
 def np_ppty(ppty_name: str, ppty_val: str, engine: sqlalchemy.engine.base.Engine) -> pd.core.frame.DataFrame:
     """ Get the id of newspapers having a specific property value.
-        Loads data frames related to propertied ans calls function np_by_property.
-        :param str ppty_name: Property name on which we want to select newspapers.
+        Loads data frames related to propertied ans calls function np_by_property. (also works with 'language')
+        :param str ppty_name: Property name on which we want to select newspapers, or 'language'.
         :param str ppty_val: Property value on which we want to select newspapers.
         :param sqlalchemy.engine.base.Engine engine: sql engine for loading dataframes.
         :return: Pandas series containing the newspaper's ids for the selected property value.
         """
-    newspapers_metadata_df = read_table('newspapers_metadata', engine)
-    meta_properties_df = read_table('meta_properties', engine)
-
-    return np_by_property(newspapers_metadata_df, meta_properties_df, ppty_name, ppty_val)
+    if ppty_name=='language':
+        newspapers_languages_df = read_table('newspapers_languages', engine)
+        languages_df = read_table('languages', engine)
+        result = np_by_language(newspapers_languages_df,languages_df, ppty_val)
+        
+    else:
+        newspapers_metadata_df = read_table('newspapers_metadata', engine)
+        meta_properties_df = read_table('meta_properties', engine)
+        result = np_by_property(newspapers_metadata_df, meta_properties_df, ppty_name, ppty_val)
+        
+    return result
 
 
 def np_country(code: str) -> pd.core.frame.DataFrame:
@@ -202,9 +209,8 @@ def group_and_count(df: pd.core.frame.DataFrame,
     count_df = count_df[column_select].rename('count')
     
     # For each index of the first level (grouping_col, usually the newspaper_id),
-    # check if a time value is missing.
-    
-    time_step = 1 if grouping_col == 'year' else 10
+    # check if a time value is missing. 
+    time_step = 1 if time_gran == 'year' else 10
     max_date = count_df.reset_index()[time_gran].max()
     min_date = count_df.reset_index()[time_gran].min()
     idx = np.arange(min_date, max_date+ time_step, time_step)
