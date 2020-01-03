@@ -47,7 +47,7 @@ def plt_freq_issues_time(time_gran: str,
     :param ppty: selected property on which to filter newspapers
     :param ppty_value: property value corresponding to the selected property
     :param batch_size: maximum number of newspapers represented on a single plot
-    :return: Nothing, but plots the histogram(s) of issue frequency.
+    :return: Aggregated dataframe.
     """
     issues_df = df
 
@@ -640,9 +640,9 @@ def plt_generic_2d(df: dask.dataframe.core.DataFrame,
         my_dict = {}
         if grouping_col[0]=='year' or grouping_col[0]=='decade' :
 
-            time_step = 1 if grouping_columns[0] == 'year' else 10
-            max_date = agg_df.reset_index()[grouping_columns[0]].max()
-            min_date = agg_df.reset_index()[grouping_columns[0]].min()
+            time_step = 1 if grouping_col[0] == 'year' else 10
+            max_date = agg_df.reset_index()[grouping_col[0]].max()
+            min_date = agg_df.reset_index()[grouping_col[0]].min()
             idx = np.arange(min_date, max_date+ time_step, time_step)
     
             for idx1 in agg_df.index.get_level_values(1).unique():
