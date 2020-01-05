@@ -26,7 +26,7 @@ ASPECT=3
 FIG_ASPECT=5
 
 # ----------------------- ISSUES ----------------------- #
-#plot_freq_issues
+
 def plt_freq_issues_time(time_gran: str,
                         start_date: int = None,
                         end_date: int = None,
@@ -65,30 +65,33 @@ def plt_freq_issues_time(time_gran: str,
         issues_df = decade_from_year_df(issues_df)
 
     # group and count for the histogram
-    count_df = group_and_count(issues_df, 'newspaper_id', time_gran, 'id', print_=False)
+    count_df = group_and_count(issues_df, 'newspaper_id', time_gran, 'id')
 
     # if batch_size not specified : plot all newspapers on the same figure
     if batch_size is None:
         g = sns.catplot(x=time_gran, y="count", hue="newspaper_id", kind="bar", data=count_df, height=HEIGHT, aspect=ASPECT)
-
+        
+        # The second value in the list is what will be displayed on the graph (which is \
+        # why we put 'newspaper' and not 'newspaper_id')
         plt_settings_FacetGrid(g, count_df, [time_gran, 'newspaper'], \
                                facet='freq', level='issues', hide_xtitle=True, log_y=False)
 
     # else plot by batches (no intelligent batching is done)
     else:
         assert (0 < batch_size and batch_size < 20), "Batch size must be between 1 and 19."
-        catplot_by_batch_np(count_df, np_ids_filtered, time_gran, 'count', 'newspaper_id', batch_size,
+        catplot_by_batch_np(count_df, np_ids_filtered, time_gran, 'count', 'newspaper_id', max_cat=batch_size,
                             display_x_label=False, y_label='Number of issues',
                             title='Issue frequency per newspaper, through time.')
         
     return count_df
 
-#plot_freq_issues_batch
+
 def catplot_by_batch_np(df: pd.core.frame.DataFrame,
                         np_list: Iterable,
                         xp: str,
                         yp: str,
                         huep: str,
+                        log_y: bool = False,
                         max_cat: int = MAX_CAT,
                         rotation: int = None,
                         display_x_label: bool = True,
@@ -103,6 +106,7 @@ def catplot_by_batch_np(df: pd.core.frame.DataFrame,
     :param xp: x axis variable
     :param yp: y axis variable
     :param huep: hue variable
+    :param log_y: set to True to plot y axis in logarithmic scale
     :param max_cat: maximum number of categories represented on a single plot
     :param rotation: rotation for the labels on the x axis (optional)
     :param display_x_label: set to False if x axis title should be hidden
@@ -123,13 +127,16 @@ def catplot_by_batch_np(df: pd.core.frame.DataFrame,
 
         g = sns.catplot(x=xp, y=yp, hue=huep, kind="bar", data=batch, height=HEIGHT, aspect=ASPECT)
 
-        plt_settings_FacetGrid(g, batch, [xp, 'newspaper'], facet='freq', level='issues', hide_xtitle=True, log_y=False)
+        # The second value in the list is what will be displayed on the graph (which is \
+        # why we put 'newspaper' and not 'newspaper_id')
+        plt_settings_FacetGrid(g, batch, [xp, 'newspaper'], facet='freq', level='issues', hide_xtitle=True, log_y=log_y)
 
 
 # ----------------------- LICENCES ----------------------- #
 
 def plot_licences(facet: str = 'newspapers',
                   df: pd.core.frame.DataFrame = None,
+                  log_y: bool = False,
                   start_date: int = None,
                   end_date: int = None,
                   np_ids: Iterable = None,
@@ -141,6 +148,7 @@ def plot_licences(facet: str = 'newspapers',
     Plot frequency of the access right type per newspaper or per decade, on the given df.
     :param facet: either 'newspapers' or 'time' depending on the dimension one wants to explore
     :param df: pandas data frame on which to plot the licence frequencies after applying filters.
+    :param log_y: set to True for having y axis in log scale (default is false).
     :param start_date: earliest date for analysis
     :param end_date: latests date for analysis
     :param np_ids: list (or pandas series) of newspapers ids on which to focus
@@ -150,11 +158,12 @@ def plot_licences(facet: str = 'newspapers',
     :param ppty_value: property value corresponding to the selected property
     :return: Nothing. Plots the bar plot(s) of licence frequency.
     """
-    result_df = df.copy()
 
     # load data from SQL if needed
     if df is None:
         result_df = read_table('impresso.issues', db_engine())
+    else:
+        result_df = df.copy()
 
     # apply all filters to get specific rows of df
     result_df, np_ids = filter_df(result_df, start_date=start_date, end_date=end_date, np_ids=np_ids,
@@ -162,19 +171,27 @@ def plot_licences(facet: str = 'newspapers',
 
     result_df = decade_from_year_df(result_df)
 
-    if facet == 'newspapers':
-        count_df = group_and_count(result_df, ['newspaper_id', 'access_rights'], 'id')
-        plot_licences_np(count_df, np_ids, batch_size)
+    if facet == 'newspapers':        
+        count_df = result_df.groupby(['newspaper_id', 'access_rights']).count()
+        count_df = count_df['id'].rename('count')
+        count_df = count_df.reset_index()
+        
+        plot_licences_np(count_df, np_ids, log_y, batch_size)
 
     elif facet == 'time':
-        count_df = group_and_count(result_df, ['decade', 'access_rights'], 'id')
-        plot_licences_time(count_df, np_ids, batch_size)
+        # call helper function because it also fill gaps on time if needed
+        count_df = group_and_count(result_df, 'access_rights', 'decade', 'id')
+        
+        plot_licences_time(count_df, np_ids, log_y, batch_size)
     else:
         print("Nothing can be done : facet parameter should be either 'newspapers', or 'time'.")
+        
+    return count_df
 
 
 def plot_licences_time(count_df: pd.core.frame.DataFrame,
                        np_ids: Iterable,
+                       log_y: bool,
                        batch_size: int = None) -> None:
     """
     Plots the number of issues per access right type per decade in the given df.
@@ -186,20 +203,24 @@ def plot_licences_time(count_df: pd.core.frame.DataFrame,
     """
     # if batch_size not specified : plot all newspapers on the same figure
     if batch_size is None:
-        g = sns.catplot(x="decade", y="count", hue="access_rights", kind="bar", data=count_df, height=5, aspect=2)
-        display_setup(g, rotation=30, display_x_label=False, y_label='Number of issues',
-                      title='Issue frequency per access right type.')
+        g = sns.catplot(x="decade", y="count", hue="access_rights", kind="bar", data=count_df, height=HEIGHT, aspect=ASPECT)
+                
+        # The second value in the list is what will be displayed on the graph (which is \
+        # why we put 'access rights' and not 'access_rights')
+        plt_settings_FacetGrid(g, count_df, ['decade', 'access rights'], \
+                               facet='freq', level='issues', hide_xtitle=True, log_y=log_y)
 
     # else plot by batches (no intelligent batching is done)
     else:
         assert (0 < batch_size and batch_size < 20), "Batch size must be between 1 and 19."
-        catplot_by_batch_np(count_df, np_ids, 'decade', 'count', 'access_rights', batch_size,
+        catplot_by_batch_np(count_df, np_ids, 'decade', 'count', 'access_rights', log_y, max_cat=batch_size,
                             rotation=30, display_x_label=False, y_label='Number of issues',
                             title='Issue frequency per access right type.')
 
 
 def plot_licences_np(count_df: pd.core.frame.DataFrame,
                      np_ids: Iterable,
+                     log_y: bool,
                      batch_size: int = None) -> None:
     """
     Plots the number of issues par access right type per newspapers in the given df.
@@ -211,13 +232,17 @@ def plot_licences_np(count_df: pd.core.frame.DataFrame,
     """
     # if batch_size not specified : plot all newspapers on the same figure
     if batch_size is None:
-        g = sns.catplot(x="newspaper_id", y="count", hue="access_rights", kind="bar", data=count_df, height=5, aspect=2)
-        display_setup(g, rotation=30, y_label='Number of issues', title='Issue frequency per access right type.')
+        g = sns.catplot(x="newspaper_id", y="count", hue="access_rights", kind="bar", data=count_df, height=HEIGHT, aspect=ASPECT)
+        
+        # The second value in the list is what will be displayed on the graph (which is \
+        # why we put 'access rights' and not 'access_rights')
+        plt_settings_FacetGrid(g, count_df, ['newspaper_id', 'access rights'], \
+                               facet='freq', level='issues', hide_xtitle=True, log_y=log_y)
 
     # else plot by batches (no intelligent batching is done)
     else:
         assert (0 < batch_size and batch_size < 20), "Batch size must be between 1 and 19."
-        catplot_by_batch_np(count_df, np_ids, 'newspaper_id', 'count', 'access_rights', batch_size,
+        catplot_by_batch_np(count_df, np_ids, 'newspaper_id', 'count', 'access_rights', log_y, max_cat=batch_size,
                             y_label='Number of issues', rotation=30, title='Issue frequency per access right type.')
         
         

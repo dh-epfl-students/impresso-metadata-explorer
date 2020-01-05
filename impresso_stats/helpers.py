@@ -188,14 +188,12 @@ def check_all_column_count(df: pd.core.frame.DataFrame,
 def group_and_count(df: pd.core.frame.DataFrame,
                     grouping_col: str,
                     time_gran: str,
-                    column_select: str,
-                    print_: bool = False) -> (pd.core.frame.DataFrame, bool, Iterable):
+                    column_select: str) -> (pd.core.frame.DataFrame, bool, Iterable):
     """ Perform group by and count on a data set.
         :param pd.core.frame.DataFrame df: Source data frame.
         :param str grouping_col: columns which the df should be grouped by (with the time).
         :param str time_gran: 'year' or 'decade' depending on the precision you want.
         :param str column_select: Reference column that we keep for the count values.
-        :param bool print_: Whether we print some info in case of count differences between the columns.
         :return: Tuple of three values : the result data frame with a count column,
         a boolean indicating if all columns have the same counts (for all rows),
         a list containing the name of the columns for which some count values are different than the selected column.
@@ -290,11 +288,14 @@ def filter_df(df: pd.core.frame.DataFrame,
 def license_stats_table(df: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     """
     Gives a table with statistics about the access rights per newspaper id in given df
-    :param df: pandas data frame containing columns 'newspaper_id', 'access-rights' and 'count'
+    :param df: pandas data frame containing columns 'newspaper_id' and 'access-rights'
     :return: pandas data frame with rates on each access right level for each np
     """
-
-    ar_df = df.copy()
+    
+    ar_df = df.groupby(['newspaper_id', 'access_rights']).count()
+    ar_df = ar_df['id'].rename('count')
+    ar_df = ar_df.reset_index()
+    
 
     # Pivot to get a count per access right level & set the index correctly
     ar_df = ar_df.pivot_table('count', ['newspaper_id'], 'access_rights')
