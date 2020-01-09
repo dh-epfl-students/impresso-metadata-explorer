@@ -29,7 +29,7 @@ This repository contains :
 ### Installation and Usage
 - Dependencies: the libraries that need to be installed are summarized in the `requirements_basic.txt` file.
 
-- Package Installation (needed for running the tutorial notebooks)
+- Package Installation (needed for running the tutorial notebooks) <br/>
 	0. (Create and activate your environment)
 	1. Install `impresso_pycommons` with `$ pip install https://github.com/impresso/impresso-pycommons/archive/v0.12.0.zip`
 	2. Install requirements with `$ pip install -r requirements_basic.txt`
