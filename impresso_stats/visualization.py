@@ -19,11 +19,28 @@ LABEL_THRESHOLD_ROTATION = 30
 LABEL_THRESHOLD_SELECT = 100
 NUM_BARS_THRESHOLD = 350
 MAX_CAT = 5
-COLOR = 'salmon'
+
+# this shade is the middle shade when calling my_palette(3)
+GREEN_COLOR = [0.3057489033226374, 0.5078468120962526, 0.29249920483551073]
+#COLOR = 'salmon'
+COLOR = GREEN_COLOR
+
 HEIGHT=5
 FIG_HEIGHT=20
 ASPECT=3
 FIG_ASPECT=5
+MAX_BATCH=20
+
+def my_palette(n: int) -> sns.palettes._ColorPalette:
+    """
+    Returns the cubehelix palette we use for plotting, given the number of colors needed.
+    :param n: number of colors to be reprensented in the palette
+    :return: seaborn color palette with n colors and custom parameters
+    """
+    return sns.cubehelix_palette(n, start=0.1, dark=0.15, light=0.7, rot=-0.95)
+    #return sns.cubehelix_palette(n, start=0.2, dark=0.15, light=0.75, rot=-0.9)
+    #return sns.cubehelix_palette(n, start=0.2, rot=-0.75)
+    #return sns.cubehelix_palette(n, start=0.8, rot=-0.97, reverse=True)
 
 # ----------------------- ISSUES ----------------------- #
 
@@ -69,7 +86,11 @@ def plt_freq_issues_time(time_gran: str,
 
     # if batch_size not specified : plot all newspapers on the same figure
     if batch_size is None:
-        g = sns.catplot(x=time_gran, y="count", hue="newspaper_id", kind="bar", data=count_df, height=HEIGHT, aspect=ASPECT)
+        
+        color_pal = my_palette(len(count_df.newspaper_id.unique()))
+        
+        g = sns.catplot(x=time_gran, y="count", hue="newspaper_id", kind="bar",\
+                        data=count_df, height=HEIGHT, aspect=ASPECT, palette=color_pal)
         
         # The second value in the list is what will be displayed on the graph (which is \
         # why we put 'newspaper' and not 'newspaper_id')
@@ -121,11 +142,13 @@ def catplot_by_batch_np(df: pd.core.frame.DataFrame,
     else:
         np_batch = [np_list]
     
+    #color_pal = my_palette(max_cat)
     # Plot by batches
     for i, b in enumerate(np_batch):
         batch = filter_df_by_np_id(df, b)
+        color_pal=my_palette(len(batch[huep].unique()))
 
-        g = sns.catplot(x=xp, y=yp, hue=huep, kind="bar", data=batch, height=HEIGHT, aspect=ASPECT)
+        g = sns.catplot(x=xp, y=yp, hue=huep, kind="bar", data=batch, height=HEIGHT, aspect=ASPECT, palette=color_pal)
 
         # The second value in the list is what will be displayed on the graph (which is \
         # why we put 'newspaper' and not 'newspaper_id')
@@ -179,10 +202,14 @@ def plot_licences(facet: str = 'newspapers',
         plot_licences_np(count_df, np_ids, log_y, batch_size)
 
     elif facet == 'time':
+        if batch_size!=None:
+            # This print should be replaced by a warning later
+            print("Warning: no batch plot is done with time. batch_size parameter will be ignored.")
+            
         # call helper function because it also fill gaps on time if needed
         count_df = group_and_count(result_df, 'access_rights', 'decade', 'id')
         
-        plot_licences_time(count_df, np_ids, log_y, batch_size)
+        plot_licences_time(count_df, np_ids, log_y)
     else:
         print("Nothing can be done : facet parameter should be either 'newspapers', or 'time'.")
         
@@ -191,31 +218,26 @@ def plot_licences(facet: str = 'newspapers',
 
 def plot_licences_time(count_df: pd.core.frame.DataFrame,
                        np_ids: Iterable,
-                       log_y: bool,
-                       batch_size: int = None) -> None:
+                       log_y: bool) -> None:
     """
     Plots the number of issues per access right type per decade in the given df.
     Helper function for plot_licences.
     :param count_df: pandas data frame with columns 'count', 'decade', 'access_rights'
     :param np_ids: list of unique np ids in the df (useful for batch plotting)
-    :param batch_size: max number of decades per plot
-    :return: Nothing. Plots.
+    :param log_y: set to True for plotting in logarithmic scale (default is false)
+    :return: Nothing. Only plots.
     """
-    # if batch_size not specified : plot all newspapers on the same figure
-    if batch_size is None:
-        g = sns.catplot(x="decade", y="count", hue="access_rights", kind="bar", data=count_df, height=HEIGHT, aspect=ASPECT)
-                
-        # The second value in the list is what will be displayed on the graph (which is \
-        # why we put 'access rights' and not 'access_rights')
-        plt_settings_FacetGrid(g, count_df, ['decade', 'access rights'], \
-                               facet='freq', level='issues', hide_xtitle=True, log_y=log_y)
 
-    # else plot by batches (no intelligent batching is done)
-    else:
-        assert (0 < batch_size and batch_size < 20), "Batch size must be between 1 and 19."
-        catplot_by_batch_np(count_df, np_ids, 'decade', 'count', 'access_rights', log_y, max_cat=batch_size,
-                            rotation=30, display_x_label=False, y_label='Number of issues',
-                            title='Issue frequency per access right type.')
+    color_pal = my_palette(len(count_df.access_rights.unique()))
+
+    g = sns.catplot(x="decade", y="count", hue="access_rights", kind="bar", \
+                    data=count_df, height=HEIGHT, aspect=ASPECT, \
+                   palette=color_pal)
+
+    # The second value in the list is what will be displayed on the graph (which is \
+    # why we put 'access rights' and not 'access_rights')
+    plt_settings_FacetGrid(g, count_df, ['decade', 'access rights'], \
+                           facet='freq', level='issues', hide_xtitle=True, log_y=log_y)
 
 
 def plot_licences_np(count_df: pd.core.frame.DataFrame,
@@ -232,7 +254,12 @@ def plot_licences_np(count_df: pd.core.frame.DataFrame,
     """
     # if batch_size not specified : plot all newspapers on the same figure
     if batch_size is None:
-        g = sns.catplot(x="newspaper_id", y="count", hue="access_rights", kind="bar", data=count_df, height=HEIGHT, aspect=ASPECT)
+        
+        color_pal = my_palette(len(count_df.access_rights.unique()))
+
+        g = sns.catplot(x="newspaper_id", y="count", hue="access_rights", kind="bar",\
+                        data=count_df, height=HEIGHT, aspect=ASPECT, \
+                       palette=color_pal)
         
         # The second value in the list is what will be displayed on the graph (which is \
         # why we put 'access rights' and not 'access_rights')
@@ -241,7 +268,7 @@ def plot_licences_np(count_df: pd.core.frame.DataFrame,
 
     # else plot by batches (no intelligent batching is done)
     else:
-        assert (0 < batch_size and batch_size < 20), "Batch size must be between 1 and 19."
+        assert (0 < batch_size and batch_size < MAX_BATCH), "Batch size must be between 1 and %s." % MAX_BATCH
         catplot_by_batch_np(count_df, np_ids, 'newspaper_id', 'count', 'access_rights', log_y, max_cat=batch_size,
                             y_label='Number of issues', rotation=30, title='Issue frequency per access right type.')
         
@@ -342,6 +369,7 @@ def plt_freq_ci(df: dask.dataframe.core.DataFrame,
                 asc: bool =False, 
                 hide_xtitle: bool =False, 
                 log_y: bool =False) -> pd.core.frame.DataFrame:
+
     """
     Displays a bar plot of the number of content items aggregated at one or two dimension in given df.
     Helper function for plt_freq_ci_filter.
@@ -462,7 +490,7 @@ def plt_generic_1d(df: dask.dataframe.core.DataFrame,
     :param log_y: if set to True, plot in logarithmic scale (for y axis) (default is False)
     :return: the aggregated df used for plotting
     """
-    
+
     assert facet in ['freq', 'avg'], 'Parameter facet should be a string of value either "freq" or "avg"'
     
     # Perfom the group by and count operation and convert to pandas df
@@ -700,8 +728,10 @@ def plt_generic_2d(df: dask.dataframe.core.DataFrame,
     agg_df.sort_values(by=[grouping_col[0], facet], inplace=True, ascending=[ascending_0, False])
     
     # Plot
+    color_pal = my_palette(len(agg_df[grouping_col[1]].unique()))
+                           
     g = sns.catplot(x=grouping_col[0], y=facet, data=agg_df, \
-                hue=grouping_col[1], kind='bar', height=HEIGHT, aspect=ASPECT)
+                hue=grouping_col[1], kind='bar', height=HEIGHT, aspect=ASPECT, palette=color_pal)
     
     # Plot settings
     plt_settings_FacetGrid(g, agg_df, grouping_col, facet, 'content items', hide_xtitle, log_y)

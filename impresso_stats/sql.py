@@ -15,7 +15,7 @@ def db_engine() -> sqlalchemy.engine.base.Engine:
     db_host = os.getenv('IMPRESSO_MYSQL_HOST')
     db_name = os.getenv('IMPRESSO_MYSQL_DB')
     db_password = os.getenv('IMPRESSO_MYSQL_PWD')
-    db_url = f'mysql://{db_user}:{db_password}@{db_host}/{db_name}?charset=utf8'
+    db_url = f'mysql://{db_user}:{db_password}@{db_host}/{db_name}?charset=UTF8MB4'
     engine = create_engine(db_url, poolclass=NullPool)
     # Debug in case environment variables cannot be found
     #print(os.environ)
