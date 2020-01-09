@@ -1,5 +1,4 @@
 # Impresso - Metadata mining of large collections of historical newspapers 
-### (aka impresso-metadat-explorer)
 
 ### Basic information
 
