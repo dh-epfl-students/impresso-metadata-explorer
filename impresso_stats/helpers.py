@@ -14,18 +14,20 @@ from impresso_stats.sql import read_table, db_engine
 def np_by_language(newspapers_languages_df: pd.core.frame.DataFrame,
                    languages_df: pd.core.frame.DataFrame,
                    language: str) -> pd.core.series.Series:
-    """ Get the id of newspapers having a specific language.
-        :param pd.core.frame.DataFrame newspapers_languages_df: Newspapers data frame with languages info.
-        :param pd.core.frame.DataFrame languages_df: Data frame containing info on each language.
-        :param str language: Language value on which we want to select newspapers (e.g. "fr").
-        :return: Pandas series containing the rows of the Newspapers data frame for the selected language value.
+    """ Get IDs of newspapers having a specific language.
+        Helper function for function np_ppty.
+        :param pd.core.frame.DataFrame newspapers_languages_df: newspapers dataframe with languages info (language ID).
+        :param pd.core.frame.DataFrame languages_df: dataframe containing info on each language (matching ID and language value).
+        :param str language: language value on which we want to select newspapers (e.g. "fr").
+        :return: filtered pandas series containing the IDs of the newspapers data frame for the selected language value.
         """
 
-    assert language in languages_df.code.unique(), "Chose a language among existing ones in db."
+    if not (language in languages_df.code.unique()):
+        raise ValueError("Chose a language among existing ones in db.")
 
-    # Find ID
     lang_id = languages_df.loc[languages_df['code'] == language]['id']
     lang_id = next(iter(lang_id), 'no match')
+    
     return newspapers_languages_df.loc[newspapers_languages_df['language_id'] == lang_id]['newspaper_id']
 
 
@@ -33,22 +35,21 @@ def np_by_property(newspapers_metadata_df: pd.core.frame.DataFrame,
                    meta_properties_df: pd.core.frame.DataFrame,
                    property_name: str,
                    filter_: str) -> pd.core.series.Series:
-    """ Get the id of newspapers having a specific property value.
+    """ Get IDs of newspapers having a specific property value.
         Helper function for function np_ppty.
-        :param pd.core.frame.DataFrame newspapers_metadata_df: Newspapers data frame with properties info.
-        :param pd.core.frame.DataFrame meta_properties_df: Data frame containing info on each property.
+        :param pd.core.frame.DataFrame newspapers_metadata_df: newspapers dataframe with properties info.
+        :param pd.core.frame.DataFrame meta_properties_df: dataframe containing info on each property (matching value and ID).
         :param str property_name: Property name on which we want to select newspapers.
         :param str filter_: Property value on which we want to select newspapers.
-        :return: Pandas series containing the newspaper's ids for the selected property value.
+        :return: pandas series containing the newspaper's IDs for the selected property value.
         """
-    assert property_name in meta_properties_df.name.unique(), "Can't recognize selected property. \
-    Please chose one among existing ones in db meta_properties."
 
+    if not (property_name in meta_properties_df.name.unique()):
+        raise ValueError("Can't recognize selected property. Please chose one among existing ones in db meta_properties.")
+        
     # Find ID
     prop_id = meta_properties_df.loc[meta_properties_df['name'] == property_name]['id']
     prop_id = next(iter(prop_id), 'no match')
-
-    # TODO : check if filter is one of values for given property ?
 
     return newspapers_metadata_df.loc[(newspapers_metadata_df['property_id'] == prop_id)
                                       & (newspapers_metadata_df['value'] == filter_)]['newspaper_id']
