@@ -1,4 +1,6 @@
 from typing import Iterable
+from typing import Union
+
 from datetime import date
 
 import numpy as np
@@ -16,9 +18,9 @@ def np_by_language(newspapers_languages_df: pd.core.frame.DataFrame,
                    language: str) -> pd.core.series.Series:
     """ Get IDs of newspapers having a specific language.
         Helper function for function np_ppty.
-        :param pd.core.frame.DataFrame newspapers_languages_df: newspapers dataframe with languages info (language ID).
-        :param pd.core.frame.DataFrame languages_df: dataframe containing info on each language (matching ID and language value).
-        :param str language: language value on which we want to select newspapers (e.g. "fr").
+        :param newspapers_languages_df: newspapers dataframe with languages info (language ID).
+        :param languages_df: dataframe containing info on each language (matching ID and language value).
+        :param language: language value on which we want to select newspapers (e.g. "fr").
         :return: filtered pandas series containing the IDs of the newspapers data frame for the selected language value.
         """
 
@@ -37,15 +39,16 @@ def np_by_property(newspapers_metadata_df: pd.core.frame.DataFrame,
                    filter_: str) -> pd.core.series.Series:
     """ Get IDs of newspapers having a specific property value.
         Helper function for function np_ppty.
-        :param pd.core.frame.DataFrame newspapers_metadata_df: newspapers dataframe with properties info.
-        :param pd.core.frame.DataFrame meta_properties_df: dataframe containing info on each property (matching value and ID).
-        :param str property_name: Property name on which we want to select newspapers.
-        :param str filter_: Property value on which we want to select newspapers.
+        :param newspapers_metadata_df: newspapers dataframe with properties info.
+        :param meta_properties_df: dataframe containing info on each property (matching value and ID).
+        :param property_name: Property name on which we want to select newspapers.
+        :param filter_: Property value on which we want to select newspapers.
         :return: pandas series containing the newspaper's IDs for the selected property value.
         """
 
     if not (property_name in meta_properties_df.name.unique()):
-        raise ValueError("Can't recognize selected property. Please chose one among existing ones in db meta_properties.")
+        raise ValueError("Can't recognize selected property. Please chose one among existing ones \
+        in db meta_properties.")
         
     # Find ID
     prop_id = meta_properties_df.loc[meta_properties_df['name'] == property_name]['id']
@@ -55,18 +58,18 @@ def np_by_property(newspapers_metadata_df: pd.core.frame.DataFrame,
                                       & (newspapers_metadata_df['value'] == filter_)]['newspaper_id']
 
 
-def np_ppty(ppty_name: str, ppty_val: str, engine: sqlalchemy.engine.base.Engine) -> pd.core.frame.DataFrame:
-    """ Get the id of newspapers having a specific property value.
-        Loads data frames related to propertied ans calls function np_by_property. (also works with 'language')
-        :param str ppty_name: Property name on which we want to select newspapers, or 'language'.
-        :param str ppty_val: Property value on which we want to select newspapers.
-        :param sqlalchemy.engine.base.Engine engine: sql engine for loading dataframes.
-        :return: Pandas series containing the newspaper's ids for the selected property value.
+def np_ppty(ppty_name: str, ppty_val: str, engine: sqlalchemy.engine.base.Engine) -> pd.core.series.Series:
+    """ Get the IDs of newspapers having a specific property value.
+        Loads data frames related to propertied and calls function np_by_property. (also works with 'language')
+        :param ppty_name: Property name on which we want to select newspapers, or 'language'.
+        :param ppty_val: Property value on which we want to select newspapers, or language value.
+        :param engine: sql engine for loading dataframes.
+        :return: Pandas series containing the newspaper's IDs for the selected property value.
         """
-    if ppty_name=='language':
+    if ppty_name == 'language':
         newspapers_languages_df = read_table('newspapers_languages', engine)
         languages_df = read_table('languages', engine)
-        result = np_by_language(newspapers_languages_df,languages_df, ppty_val)
+        result = np_by_language(newspapers_languages_df, languages_df, ppty_val)
         
     else:
         newspapers_metadata_df = read_table('newspapers_metadata', engine)
@@ -77,21 +80,20 @@ def np_ppty(ppty_name: str, ppty_val: str, engine: sqlalchemy.engine.base.Engine
 
 
 def np_country(code: str) -> pd.core.frame.DataFrame:
-    """ Get the id of newspapers corresponding to a specific country.
+    """ Get the IDs of newspapers corresponding to a specific country.
         Calls function np_ppty.
-        :param str code: Country code (e.g. 'CH' for Switzerland) .
-        :return: Pandas series containing the newspaper's ids for the selected country value.
+        :param code: Country code (e.g. 'CH' for Switzerland) .
+        :return: Pandas series containing the newspaper's IDs for the selected country value.
         """
     return np_ppty('countryCode', code, db_engine())
 
 
 def check_dates(start_date: int, end_date: int) -> bool:
     """ Check validity of combination of start and end date, based on some criterions.
-    :param int start_date: earliest date
-    :param int end_date: latest date
-    :return: True if pair is valid, false otherwise
+        :param start_date: earliest date (year)
+        :param end_date: latest date (year)
+        :return: True if pair is valid, false otherwise
     """
-
     assert(start_date is not None and end_date is not None), "Start and End dates should not be None."
 
     # End date must be after start date
@@ -105,33 +107,33 @@ def check_dates(start_date: int, end_date: int) -> bool:
     return True
 
 
-def decade_from_year_df(df: pd.core.frame.DataFrame, 
+def decade_from_year_df(df: Union[pd.core.frame.DataFrame, dask.dataframe.core.DataFrame],
                         dask_df: bool = False) -> pd.core.frame.DataFrame:
-    """ Created a column 'decade' based on the columns 'year' of a pandas data frame.
-    :param pd.core.frame.DataFrame df: Data frame to be modified
-    :param dask_df: set tu True if the dataframe is dask (and not pandas)
-    :return: new pandas data frame with column decade.
+    """ Creates a column 'decade' based on the columns 'year' of a pandas or dask dataframe.
+        If dataframe already has a column 'decade', simply returns the dataframe.
+        :param df: dataframe to be expanded
+        :param dask_df: set to True if the dataframe is dask (and not pandas)
+        :return: new dataframe with an extra column decade.
     """
     if 'decade' in df.columns:
         return df
     elif 'year' in df.columns:
         result_df = df.copy()
-        if dask_df is True :
+        if dask_df is True:
             result_df['decade'] = result_df.year.apply(lambda y: y - y % 10, meta=('int'))
         else :
             result_df['decade'] = result_df.year.apply(lambda y: y - y % 10)
         return result_df
     else:
-        raise ValueError("Decade columns already there, or year columns not there.")
+        raise ValueError("Dataframe needs to have a column 'years' to add a columns 'decade'.")
 
 
-def filter_df_by_np_id(df: pd.core.frame.DataFrame,
-                       selected_np: Iterable) -> pd.core.series.Series:
-    # Param selected_np should be a list or pd.Series => check if we have a more specific type for these
+def filter_df_by_np_id(df: Union[pd.core.frame.DataFrame, dask.dataframe.core.DataFrame],
+                       selected_np: Union[list, pd.core.series.Series]) -> pd.core.series.Series:
     """ Select only the rows of a data frame, corresponding to some newspapers ID.
-        :param pd.core.frame.DataFrame df: Source data frame.
-        :param Iterable selected_np: List or pandas Series containing the newspapers id which will be kept.
-        :return: Pandas series containing the rows of the source data frame for the selected newspapers.
+        :param df: Source dataframe (pandas or dask).
+        :param selected_np: List or pandas Series containing the newspapers id which will be kept.
+        :return: dataframe containing the rows of the source data frame for the selected newspapers.
         """
     assert len(selected_np) > 0, "Given list of selected newspapers has length 0."
 
@@ -146,18 +148,19 @@ def filter_df_by_np_id(df: pd.core.frame.DataFrame,
         raise ValueError("Columns 'newspaper_id' or 'newspaper' is not there. Check your columns' name.")
 
 
+# This function is not used anymore
 def check_all_column_count(df: pd.core.frame.DataFrame,
                            count_df: pd.core.frame.DataFrame,
-                           grouping_columns: Iterable,
+                           grouping_columns: Union[list, pd.core.series.Series],
                            column_select: str,
-                           print_: bool) -> (pd.core.frame.DataFrame, bool, Iterable):
+                           print_: bool) -> pd.core.frame.DataFrame:
     """ Check whether all columns of a data frame have the same count value after operations group by and count.
         Helper function for group_and_count function.
-        :param pd.core.frame.DataFrame df: Source data frame.
-        :param pd.core.frame.DataFrame count_df: Data frame after the group by and count operations.
-        :param Iterable grouping_columns: List of columns on which the df has been groups by.
-        :param str column_select: Reference column to which we compare others.
-        :param bool print_: Whether we print some info in case of differences.
+        :param df: Source data frame.
+        :param count_df: Data frame after the group by and count operations.
+        :param grouping_columns: List of columns on which the df has been groups by.
+        :param column_select: Reference column to which we compare others.
+        :param print_: Whether we print some info in case of differences.
         :return: Tuple of three values : the data frame with a count column,
         a boolean indicating if all columns have the same counts (for all rows),
         a list containing the name of the columns for which some count values are different than the selected column.
@@ -189,19 +192,19 @@ def check_all_column_count(df: pd.core.frame.DataFrame,
 def group_and_count(df: pd.core.frame.DataFrame,
                     grouping_col: str,
                     time_gran: str,
-                    column_select: str) -> (pd.core.frame.DataFrame, bool, Iterable):
-    """ Perform group by and count on a data set.
-        :param pd.core.frame.DataFrame df: Source data frame.
-        :param str grouping_col: columns which the df should be grouped by (with the time).
-        :param str time_gran: 'year' or 'decade' depending on the precision you want.
-        :param str column_select: Reference column that we keep for the count values.
-        :return: Tuple of three values : the result data frame with a count column,
-        a boolean indicating if all columns have the same counts (for all rows),
-        a list containing the name of the columns for which some count values are different than the selected column.
+                    column_select: str) -> pd.core.frame.DataFrame:
+    """ Perform group by and count on a data set, by two columns, one being a time column.
+        Handles potential gaps in the time dimension.
+        :param df: Source pandas dataframe.
+        :param grouping_col: column which the df should be grouped by (with the time).
+        :param time_gran: 'year' or 'decade' depending on the precision you want.
+        :param column_select: Reference column that we keep for the count values.
+        :return: the result dataframe with a count column.
         """
 
-    assert time_gran=='year' or time_gran=='decade', "Value of 'time_gran' parameter should be either 'year' of 'decade'."
-    
+    if not (time_gran == 'year' or time_gran == 'decade'):
+        raise ValueError("Value of 'time_gran' parameter should be either 'year' of 'decade'.")
+
     count_df = df.groupby([grouping_col, time_gran]).count()
     
     # Keep only the column we need
@@ -228,23 +231,24 @@ def group_and_count(df: pd.core.frame.DataFrame,
     return result
 
 
-def filter_df(df: pd.core.frame.DataFrame,
+def filter_df(df: Union[pd.core.frame.DataFrame, dask.dataframe.core.DataFrame],
               start_date: int = None,
               end_date: int = None,
               np_ids: Iterable = None,
               country: str = None,
               ppty: str = None,
-              ppty_value: str = None) -> (pd.core.frame.DataFrame, pd.core.series.Series):
+              ppty_value: str = None
+              ) -> (Union[pd.core.frame.DataFrame, dask.dataframe.core.DataFrame], pd.core.series.Series):
     """
     Returns a filtered data frame depending on the parameters
-    :param df: original data frame to be filtered
-    :param start_date: earliest date we want in the final df
-    :param end_date: latests date we want in the final df
-    :param np_ids: list of newspapers id to keep (drop all others)
-    :param country: select by country (eg 'CH', 'LU')
-    :param str ppty_name: Property name on which we want to select newspapers.
-    :param str ppty_val: Property value on which we want to select newspapers.
-    :return: Filtered data frame.
+    :param df: original data frame to be filtered (pandas or dask).
+    :param start_date: earliest year we want in the final df.
+    :param end_date: latest year we want in the final df.
+    :param np_ids: list of newspapers IDs to keep (drop all others).
+    :param country: select by country (e.g. 'CH', 'LU').
+    :param ppty: Property name on which to select newspapers.
+    :param ppty_value: Property value on which to select newspapers.
+    :return: Filtered dataframe (pandas or dask).
     """
     result_df = df.copy()
 
@@ -296,7 +300,6 @@ def license_stats_table(df: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     ar_df = df.groupby(['newspaper_id', 'access_rights']).count()
     ar_df = ar_df['id'].rename('count')
     ar_df = ar_df.reset_index()
-    
 
     # Pivot to get a count per access right level & set the index correctly
     ar_df = ar_df.pivot_table('count', ['newspaper_id'], 'access_rights')
@@ -319,7 +322,7 @@ def license_stats_table(df: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     ar_df['OpenPublic'] = ar_df['OpenPublic'].map('{:,.0f}'.format)
     ar_df['Total'] = ar_df['Total'].map('{:,.0f}'.format)
     
-    # Troncate rates
+    # Truncate rates
     ar_df['rate_Closed'] = ar_df['rate_Closed'].map(lambda x: '{:,.4%}'.format(x) if x>0 else 0)
     ar_df['rate_OpenPrivate'] = ar_df['rate_OpenPrivate'].map(lambda x: '{:,.4%}'.format(x) if x>0 else 0)
     ar_df['rate_OpenPublic'] = ar_df['rate_OpenPublic'].map(lambda x: '{:,.4%}'.format(x) if x>0 else 0)
@@ -327,12 +330,12 @@ def license_stats_table(df: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     return ar_df
 
 
-def multiple_ar_np(df: pd.core.frame.DataFrame) -> Iterable:
+def multiple_ar_np(df: pd.core.frame.DataFrame) -> list:
     """
-    Finds the newspapers ids of newspapers which have issues with several different access right types
-    :param df: pandas data frame with has 'access_rights' and 'newspapers_id' columns, in which to find the
-    newspapers id (typically the issues data frame)
-    :return: array of all
+    Find IDS of newspapers which have issues with several different access right types
+    :param df: pandas dataframe with 'access_rights' and 'newspapers_id' columns, in which to find the
+    newspapers ID (typically the issues dataframe)
+    :return: list of all IDs
     """
     # Count number of different access rights per newspapers and mark the ones which have more that 1 access
     # right policy
@@ -344,15 +347,16 @@ def multiple_ar_np(df: pd.core.frame.DataFrame) -> Iterable:
 
 # ----------------------------# CONTENT ITEMS #---------------------------- #
 
-def licenses_ci_df(ci_df:  dask.dataframe.core.DataFrame) -> None:
-    '''
-    Helper function to get the access rights at the level of content items :
-    Loads and join the sql table on issues, with the df passed as parameter.
-    Warning : this function is very sensitive to any change in the column names 
-    for the df passed as parameter and for the one in sql.
-    :param df: dask data frame with column 'id' having format: NNN-yyyy-mm-dd-t-ixxxx 
-    from which we can extract the issue_id : NNN-yyyy-mm-dd-t
-    :return: Merged dataframe, with access right for each content item'''
+def licenses_ci_df(ci_df: dask.dataframe.core.DataFrame) -> pd.core.frame.DataFrame:
+    """
+        Helper function to get the access rights at the level of content items :
+        Loads and join the sql table on issues, with the df passed as parameter.
+        Warning : this function is very sensitive to any change in the column names
+        for the df passed as parameter and for the one in sql.
+        :param ci_df: dask dataframe with column 'id' having format: NNN-yyyy-mm-dd-t-ixxxx
+        from which we can extract the issue_id : NNN-yyyy-mm-dd-t
+        :return: Merged dataframe, with access right for each content item
+    """
     
     # Read df with access rights (as issues level) from sql
     engine = db_engine()
@@ -368,7 +372,7 @@ def licenses_ci_df(ci_df:  dask.dataframe.core.DataFrame) -> None:
     merged_df = ci_df.merge(issues_df, on='issue_id', suffixes=('_ci', '_issue'))
     
     # Select relevant columns and rename column year for compatibility with package functions
-    merged_df = merged_df[['id', 'newspaper','decade', 'year_issue', 'month', 'day',  'type', 'n_tokens', \
-                                   'title_length', 'access_rights']].rename(columns={'year_issue':'year'})
+    merged_df = merged_df[['id', 'newspaper', 'decade', 'year_issue', 'month', 'day',  'type', 'n_tokens',\
+                           'title_length', 'access_rights']].rename(columns={'year_issue': 'year'})
     
     return merged_df

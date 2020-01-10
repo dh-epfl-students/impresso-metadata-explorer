@@ -42,6 +42,14 @@ This repository contains :
 		(example: `from impresso_stats.visualization import plt_freq_time_issues` >> cf. tutorials from more details)
 	4. explore !
 
+- Additional notes:
+    - Functions in `sql.py` file load data from SQL, based on environment variables 
+        - User name: 'IMPRESSO_MYSQL_USER'
+        - Host name: 'IMPRESSO_MYSQL_HOST'
+        - Database name: 'IMPRESSO_MYSQL_DB'
+        Password: 'IMPRESSO_MYSQL_PWD'
+        
+        In order to use these functions, you need to define these environment variables in your `.bash_profile`.
 
 ### License  
 **Impresso - Metadata mining of large collections of historical newspapers** - Justine Weber    

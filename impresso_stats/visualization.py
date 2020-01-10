@@ -10,6 +10,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tkr
 from typing import Iterable
+from typing import Union
 
 from  matplotlib.ticker import FuncFormatter
 
@@ -22,42 +23,47 @@ MAX_CAT = 5
 
 # this shade is the middle shade when calling my_palette(3)
 GREEN_COLOR = [0.3057489033226374, 0.5078468120962526, 0.29249920483551073]
-#COLOR = 'salmon'
 COLOR = GREEN_COLOR
+# COLOR = 'salmon'
 
-HEIGHT=5
-FIG_HEIGHT=20
-ASPECT=3
-FIG_ASPECT=5
-MAX_BATCH=20
+HEIGHT = 5
+FIG_HEIGHT = 20
+ASPECT = 3
+FIG_ASPECT = 5
+MAX_BATCH = 20
+
 
 def my_palette(n: int) -> sns.palettes._ColorPalette:
     """
     Returns the cubehelix palette we use for plotting, given the number of colors needed.
-    :param n: number of colors to be reprensented in the palette
+    :param n: number of colors to be represented in the palette
     :return: seaborn color palette with n colors and custom parameters
     """
+    # Other palettes that have been tried
+    # sns.cubehelix_palette(n, start=0.2, dark=0.15, light=0.75, rot=-0.9)
+    # sns.cubehelix_palette(n, start=0.2, rot=-0.75)
+    # sns.cubehelix_palette(n, start=0.8, rot=-0.97, reverse=True)
     return sns.cubehelix_palette(n, start=0.1, dark=0.15, light=0.7, rot=-0.95)
-    #return sns.cubehelix_palette(n, start=0.2, dark=0.15, light=0.75, rot=-0.9)
-    #return sns.cubehelix_palette(n, start=0.2, rot=-0.75)
-    #return sns.cubehelix_palette(n, start=0.8, rot=-0.97, reverse=True)
+
 
 # ----------------------- ISSUES ----------------------- #
 
 def plt_freq_issues_time(time_gran: str,
-                        start_date: int = None,
-                        end_date: int = None,
-                        np_ids: Iterable = None,
-                        country: str = None,
-                        df: pd.core.frame.DataFrame = None,
-                        ppty: str = None,
-                        ppty_value: str = None,
-                        batch_size: int = None) -> pd.core.frame.DataFrame:
+                         start_date: int = None,
+                         end_date: int = None,
+                         np_ids: Union[list, pd.core.series.Series] = None,
+                         country: str = None,
+                         df: pd.core.frame.DataFrame = None,
+                         ppty: str = None,
+                         ppty_value: str = None,
+                         batch_size: int = None) -> pd.core.frame.DataFrame:
     """
     General plotting function for issues frequency analysis (histogram).
+    Displays a barplot of the statistics.
+    Takes filtering parameters.
     :param time_gran: granularity in time, either 'year' or 'decade'
-    :param start_date: earliest date for analysis
-    :param end_date: latests date for analysis
+    :param start_date: earliest year for analysis
+    :param end_date: latest year for analysis
     :param np_ids: list (or pandas series) of newspapers ids on which to focus
     :param country: selected country code
     :param df: original data frame on which to build the histogram
@@ -89,37 +95,29 @@ def plt_freq_issues_time(time_gran: str,
         
         color_pal = my_palette(len(count_df.newspaper_id.unique()))
         
-        g = sns.catplot(x=time_gran, y="count", hue="newspaper_id", kind="bar",\
+        g = sns.catplot(x=time_gran, y="count", hue="newspaper_id", kind="bar",
                         data=count_df, height=HEIGHT, aspect=ASPECT, palette=color_pal)
         
         # The second value in the list is what will be displayed on the graph (which is \
         # why we put 'newspaper' and not 'newspaper_id')
-        plt_settings_FacetGrid(g, count_df, [time_gran, 'newspaper'], \
+        plt_settings_FacetGrid(g, count_df, [time_gran, 'newspaper'],
                                facet='freq', level='issues', hide_xtitle=True, log_y=False)
 
     # else plot by batches (no intelligent batching is done)
     else:
         assert (0 < batch_size and batch_size < 20), "Batch size must be between 1 and 19."
-        catplot_by_batch_np(count_df, np_ids_filtered, time_gran, 'count', 'newspaper_id', max_cat=batch_size,
-                            display_x_label=False, y_label='Number of issues',
-                            title='Issue frequency per newspaper, through time.')
+        catplot_by_batch_np(count_df, np_ids_filtered, time_gran, 'count', 'newspaper_id', max_cat=batch_size)
         
     return count_df
 
 
 def catplot_by_batch_np(df: pd.core.frame.DataFrame,
-                        np_list: Iterable,
+                        np_list: Union[list, pd.core.series.Series],
                         xp: str,
                         yp: str,
                         huep: str,
                         log_y: bool = False,
-                        max_cat: int = MAX_CAT,
-                        rotation: int = None,
-                        display_x_label: bool = True,
-                        display_y_label: bool = True,
-                        x_label: str = None,
-                        y_label: str = None,
-                        title: str = None) -> None:
+                        max_cat: int = MAX_CAT) -> None:
     """
     Helper function for plotting by batches
     :param df: data frame to plot (no processing done on it)
@@ -129,12 +127,6 @@ def catplot_by_batch_np(df: pd.core.frame.DataFrame,
     :param huep: hue variable
     :param log_y: set to True to plot y axis in logarithmic scale
     :param max_cat: maximum number of categories represented on a single plot
-    :param rotation: rotation for the labels on the x axis (optional)
-    :param display_x_label: set to False if x axis title should be hidden
-    :param display_y_label: set to False if y axis title should be hidden
-    :param x_label: specify the title you want to set for the x axis
-    :param y_label: specify the title you want to set for the y axis
-    :param title: specify plot title
     :return: Nothing, only plots.
     """
     if len(df.newspaper_id.unique()) > max_cat:
@@ -142,11 +134,10 @@ def catplot_by_batch_np(df: pd.core.frame.DataFrame,
     else:
         np_batch = [np_list]
     
-    #color_pal = my_palette(max_cat)
     # Plot by batches
     for i, b in enumerate(np_batch):
         batch = filter_df_by_np_id(df, b)
-        color_pal=my_palette(len(batch[huep].unique()))
+        color_pal = my_palette(len(batch[huep].unique()))
 
         g = sns.catplot(x=xp, y=yp, hue=huep, kind="bar", data=batch, height=HEIGHT, aspect=ASPECT, palette=color_pal)
 
@@ -162,24 +153,25 @@ def plot_licences(facet: str = 'newspapers',
                   log_y: bool = False,
                   start_date: int = None,
                   end_date: int = None,
-                  np_ids: Iterable = None,
+                  np_ids: Union[list, pd.core.series.Series] = None,
                   country: str = None,
                   batch_size: int = None,
                   ppty: str = None,
-                  ppty_value: str = None):
+                  ppty_value: str = None) -> pd.core.frame.DataFrame:
     """
     Plot frequency of the access right type per newspaper or per decade, on the given df.
+    Displays a barplot of the frequency.
     :param facet: either 'newspapers' or 'time' depending on the dimension one wants to explore
     :param df: pandas data frame on which to plot the licence frequencies after applying filters.
     :param log_y: set to True for having y axis in log scale (default is false).
-    :param start_date: earliest date for analysis
-    :param end_date: latests date for analysis
+    :param start_date: earliest year for analysis
+    :param end_date: latests year for analysis
     :param np_ids: list (or pandas series) of newspapers ids on which to focus
     :param country: selected country code
     :param batch_size: maximum number of newspapers represented on a single plot
     :param ppty: selected property on which to filter newspapers
     :param ppty_value: property value corresponding to the selected property
-    :return: Nothing. Plots the bar plot(s) of licence frequency.
+    :return: Aggregated dataframe (with a count 'column').
     """
 
     # load data from SQL if needed
@@ -202,14 +194,14 @@ def plot_licences(facet: str = 'newspapers',
         plot_licences_np(count_df, np_ids, log_y, batch_size)
 
     elif facet == 'time':
-        if batch_size!=None:
+        if batch_size is not None:
             # This print should be replaced by a warning later
             print("Warning: no batch plot is done with time. batch_size parameter will be ignored.")
             
         # call helper function because it also fill gaps on time if needed
         count_df = group_and_count(result_df, 'access_rights', 'decade', 'id')
         
-        plot_licences_time(count_df, np_ids, log_y)
+        plot_licences_time(count_df, log_y)
     else:
         print("Nothing can be done : facet parameter should be either 'newspapers', or 'time'.")
         
@@ -217,38 +209,37 @@ def plot_licences(facet: str = 'newspapers',
 
 
 def plot_licences_time(count_df: pd.core.frame.DataFrame,
-                       np_ids: Iterable,
-                       log_y: bool) -> None:
+                       log_y: bool = False) -> None:
     """
     Plots the number of issues per access right type per decade in the given df.
     Helper function for plot_licences.
     :param count_df: pandas data frame with columns 'count', 'decade', 'access_rights'
-    :param np_ids: list of unique np ids in the df (useful for batch plotting)
-    :param log_y: set to True for plotting in logarithmic scale (default is false)
+    :param log_y: set to True for plotting in logarithmic scale for y axis (default is false)
     :return: Nothing. Only plots.
     """
 
     color_pal = my_palette(len(count_df.access_rights.unique()))
 
-    g = sns.catplot(x="decade", y="count", hue="access_rights", kind="bar", \
-                    data=count_df, height=HEIGHT, aspect=ASPECT, \
-                   palette=color_pal)
+    g = sns.catplot(x="decade", y="count", hue="access_rights", kind="bar",
+                    data=count_df, height=HEIGHT, aspect=ASPECT,
+                    palette=color_pal)
 
     # The second value in the list is what will be displayed on the graph (which is \
     # why we put 'access rights' and not 'access_rights')
-    plt_settings_FacetGrid(g, count_df, ['decade', 'access rights'], \
+    plt_settings_FacetGrid(g, count_df, ['decade', 'access rights'],
                            facet='freq', level='issues', hide_xtitle=True, log_y=log_y)
 
 
 def plot_licences_np(count_df: pd.core.frame.DataFrame,
                      np_ids: Iterable,
-                     log_y: bool,
+                     log_y: bool = False,
                      batch_size: int = None) -> None:
     """
     Plots the number of issues par access right type per newspapers in the given df.
     Helper function for plot_licences.
     :param count_df: pandas data frame with columns 'count', 'newspapers_id', 'access_rights'
     :param np_ids: list of unique np ids in the df (useful for batch plotting)
+    :param log_y: set to True for plotting in logarithmic scale for y axis (default is False)
     :param batch_size: max number of newspaper per plot
     :return: Nothing. Plots.
     """
@@ -257,35 +248,33 @@ def plot_licences_np(count_df: pd.core.frame.DataFrame,
         
         color_pal = my_palette(len(count_df.access_rights.unique()))
 
-        g = sns.catplot(x="newspaper_id", y="count", hue="access_rights", kind="bar",\
-                        data=count_df, height=HEIGHT, aspect=ASPECT, \
-                       palette=color_pal)
+        g = sns.catplot(x="newspaper_id", y="count", hue="access_rights", kind="bar",
+                        data=count_df, height=HEIGHT, aspect=ASPECT,
+                        palette=color_pal)
         
         # The second value in the list is what will be displayed on the graph (which is \
         # why we put 'access rights' and not 'access_rights')
-        plt_settings_FacetGrid(g, count_df, ['newspaper_id', 'access rights'], \
+        plt_settings_FacetGrid(g, count_df, ['newspaper_id', 'access rights'],
                                facet='freq', level='issues', hide_xtitle=True, log_y=log_y)
 
     # else plot by batches (no intelligent batching is done)
     else:
         assert (0 < batch_size and batch_size < MAX_BATCH), "Batch size must be between 1 and %s." % MAX_BATCH
-        catplot_by_batch_np(count_df, np_ids, 'newspaper_id', 'count', 'access_rights', log_y, max_cat=batch_size,
-                            y_label='Number of issues', rotation=30, title='Issue frequency per access right type.')
+        catplot_by_batch_np(count_df, np_ids, 'newspaper_id', 'count', 'access_rights', log_y, max_cat=batch_size)
         
-        
-        
+
 # ----------------------- CONTENT ITEMS ----------------------- #
 
-def plt_freq_ci_filter(df: dask.dataframe.core.DataFrame, 
-                grouping_col: list, 
-                asc: bool =False, 
-                hide_xtitle: bool =False, 
-                log_y: bool =False, 
-                types: list = None,
-                start_date: int = None,
-                end_date: int = None,
-                np_ids: Iterable = None,
-                country: str = None) -> pd.core.frame.DataFrame:
+def plt_freq_ci_filter(df: dask.dataframe.core.DataFrame,
+                       grouping_col: list,
+                       asc: bool = False,
+                       hide_xtitle: bool =False,
+                       log_y: bool =False,
+                       types: list = None,
+                       start_date: int = None,
+                       end_date: int = None,
+                       np_ids: Iterable = None,
+                       country: str = None) -> pd.core.frame.DataFrame:
     """
     Similar function as plt_freq_ci, on which you can add a filter at the level of newspapers.
     Displays a bar plot of the number of content items aggregated at one or two dimension in given df, 
