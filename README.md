@@ -8,11 +8,40 @@
 
 ### Introduction
 
-This project contributes to the Impresso project (cf. https://impresso-project.ch/). It provides a python library - impresso_stats - to produce and visualize descriptive statistics about the impresso newspaper corpus. This library is intended to be used by historians who know the basis of code, and the team working on Impresso, in order to get information on the dataset, in an intuitive, fast and universal way. Statistics mainly concern the issues and content items frequency, the licences, and the title length. This library should be enriched in the future, to provide more statistics, greater modularity, and better maintenance protection.
+This project contributes to the Impresso project (cf. https://impresso-project.ch/). 
+It provides a python library - impresso_stats - to produce and visualize descriptive statistics 
+about the impresso newspaper corpus. This library is intended to be used by historians who know 
+the basis of code, and the team working on Impresso, in order to get information on the dataset, 
+in an intuitive, fast and universal way. 
+### Project summary
 
-### Research summary
-_brief summary of your approaches/implementations_
-_illustration of results_
+The package gathers a set of functions, made for providing statistics on the newspaper corpus and visualize them. 
+Most functions which are intended to be used, perform a group-by and aggregrate operation (typically count or mean), 
+return the aggregated dataframe, and display a bar plot of the result.
+
+Statistics which can be obtained using the library's functions mainly concern:
+ - issues frequency
+ - content items frequency
+ - licences
+ - title length (of content items)
+
+Full description of the functionalities is provided in the three tutorial jupyter notebooks.
+
+This library should be enriched in the future, to provide more statistics, greater modularity, and better maintenance protection.
+
+Below are some snapshots of what can be done.
+![alt text][plot1]
+![alt text][plot2]
+![alt text][plot3]
+![alt text][plot4]
+![alt text][plot5]
+
+[plot1]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
+[plot2]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
+[plot3]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
+[plot4]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
+[plot5]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
+
 
 ### Repository description
 This repository contains :
