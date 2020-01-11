@@ -36,7 +36,7 @@ Below are some snapshots of what can be done.
 ![alt text][plot4]
 ![alt text][plot5]
 
-[plot1]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
+[plot1]: https://github.com/dhlab-epfl-students/impresso-metadata-explorer/blob/master/images/plt-freq-ci-1d.png "title1"
 [plot2]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
 [plot3]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
 [plot4]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
