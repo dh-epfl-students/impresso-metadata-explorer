@@ -34,13 +34,11 @@ Below are some snapshots of what can be done.
 ![alt text][plot2]
 ![alt text][plot3]
 ![alt text][plot4]
-![alt text][plot5]
 
-[plot1]: https://github.com/dhlab-epfl-students/impresso-metadata-explorer/blob/master/images/plt-freq-ci-1d.png "title1"
-[plot2]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
-[plot3]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
-[plot4]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
-[plot5]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 2"
+[plot1]: https://github.com/dhlab-epfl-students/impresso-metadata-explorer/blob/master/images/plt-freq-issues.png "Number of issues through time for newspapers Gazette de Lausanne and Journal de Genève"
+[plot2]: https://github.com/dhlab-epfl-students/impresso-metadata-explorer/blob/master/images/plt-licences-time.png "Number of issues per access right type through time"
+[plot3]: https://github.com/dhlab-epfl-students/impresso-metadata-explorer/blob/master/images/plt-freq-ci-1d.png "Number of content items per newspapers in the 19th century"
+[plot4]: https://github.com/dhlab-epfl-students/impresso-metadata-explorer/blob/master/images/plt-freq-ci.png "Number of images (dark) compared to advertisements (light) in journals Gazette de Lausanne and Journal de Genève (over the whole dataset)"
 
 
 ### Repository description
